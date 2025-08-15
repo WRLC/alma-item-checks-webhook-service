@@ -1,6 +1,6 @@
 # Alma Item Checks Webhook Service
  
- Azure Function webhook service for the WRLC's Alma Item Checks application. 
+Webhook service for WRLC's Alma Item Checks application. 
  
 It process item updates from the Ex Libris Alma library management system, using a queue-based architecture to asynchronously validate the webhook request, re-retrieve full item data by barcode (to verify active lifecycle status), and store the results for further processing by the Alma Item Checks Processing Service.
  
@@ -8,6 +8,7 @@ It process item updates from the Ex Libris Alma library management system, using
 
 *   Python 3.12+
 *   MySQL 8.1+
+*   Azure Functions
 *   wrlc-alma-api-client (private package)
 
 ## Configuration
