@@ -1,0 +1,51 @@
+name: 'Deploy Azure Function'
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'alma_item_checks_webhook_service/**'
+      - 'pyproject.toml'
+      - 'alembic/**'
+      - 'function_app.py'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Checkout'
+        uses: actions/checkout@v3
+
+      - name: 'Set up Python'
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: 'Install Poetry'
+        run: |
+          python -m pip install --upgrade pip
+          pip install poetry
+
+      - name: 'Install dependencies'
+        run: poetry install --no-dev
+
+      - name: 'Login to Azure'
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: 'Run database migrations'
+        run: |
+          CONNECTION_STRING=$(az functionapp config appsettings list --name ${{ secrets.FUNCTION_APP_NAME }} --resource-group ${{ secrets.RESOURCE_GROUP_NAME }} --slot stage --query "[?name=='SQLALCHEMY_CONNECTION_STRING'].value" -o tsv)
+          export SQLALCHEMY_DATABASE_URI=$CONNECTION_STRING
+          poetry run alembic upgrade head
+        env:
+          RESOURCE_GROUP_NAME: ${{ secrets.RESOURCE_GROUP_NAME }}
+
+      - name: 'Deploy to Azure Functions'
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ secrets.FUNCTION_APP_NAME }}
+          slot-name: 'stage'
+          package: '.'
