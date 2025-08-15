@@ -1,27 +1,23 @@
-resource "azurerm_app_service_plan" "app_service_plan" {
+resource "azurerm_service_plan" "app_service_plan" {
   name                = "${var.project_name}-app-service-plan"
   resource_group_name = var.resource_group_name
   location            = var.location
-  kind                = "FunctionApp"
-  reserved            = true # Required for Linux
-
-  sku {
-    tier = "Dynamic"
-    size = "Y1"
-  }
+  os_type             = "Linux"
+  sku_name            = "Y1" # Consumption Plan
 }
 
-resource "azurerm_function_app" "function_app" {
+resource "azurerm_linux_function_app" "function_app" {
   name                       = var.function_app_name
   resource_group_name        = var.resource_group_name
   location                   = var.location
-  app_service_plan_id        = azurerm_app_service_plan.app_service_plan.id
+  service_plan_id            = azurerm_service_plan.app_service_plan.id
   storage_account_name       = azurerm_storage_account.storage_account.name
   storage_account_access_key = azurerm_storage_account.storage_account.primary_access_key
-  os_type                    = "linux"
 
   site_config {
-    python_version = "3.12"
+    application_stack {
+      python_version = "3.12"
+    }
   }
 
   app_settings = {
@@ -32,27 +28,25 @@ resource "azurerm_function_app" "function_app" {
     "ITEM_VALIDATION_CONTAINER_NAME" = local.item_validation_container_name
   }
 
-  slot_setting_names = [
-    "SQLALCHEMY_CONNECTION_STRING",
-    "WEBHOOK_SECRET",
-    "BARCODE_RETRIEVAL_QUEUE_NAME",
-    "ITEM_VALIDATION_QUEUE_NAME",
-    "ITEM_VALIDATION_CONTAINER_NAME"
-  ]
+  sticky_settings {
+    app_setting_names = [
+      "SQLALCHEMY_CONNECTION_STRING",
+      "WEBHOOK_SECRET",
+      "BARCODE_RETRIEVAL_QUEUE_NAME",
+      "ITEM_VALIDATION_QUEUE_NAME",
+      "ITEM_VALIDATION_CONTAINER_NAME"
+    ]
+  }
 }
 
-resource "azurerm_function_app_slot" "staging_slot" {
-  name                       = "stage"
-  function_app_name          = azurerm_function_app.function_app.name
-  resource_group_name        = var.resource_group_name
-  location                   = var.location
-  app_service_plan_id        = azurerm_app_service_plan.app_service_plan.id
-  storage_account_name       = azurerm_storage_account.storage_account.name
-  storage_account_access_key = azurerm_storage_account.storage_account.primary_access_key
-  os_type                    = "linux"
+resource "azurerm_linux_function_app_slot" "staging_slot" {
+  name            = "stage"
+  function_app_id = azurerm_linux_function_app.function_app.id
 
   site_config {
-    python_version = "3.12"
+    application_stack {
+      python_version = "3.12"
+    }
   }
 
   app_settings = {

@@ -29,9 +29,9 @@ resource "azurerm_storage_queue" "item_validation_queue" {
 }
 
 resource "azurerm_storage_container" "item_validation_container" {
-  name                  = local.item_validation_container_name
-  storage_account_id    = azurerm_storage_account.storage_account.id
-  container_access_type = "private"
+  name                   = local.item_validation_container_name
+  storage_account_name = azurerm_storage_account.storage_account.name
+  container_access_type  = "private"
 }
 
 # Stage Storage Resources
@@ -46,7 +46,7 @@ resource "azurerm_storage_queue" "stage_item_validation_queue" {
 }
 
 resource "azurerm_storage_container" "stage_item_validation_container" {
-  name                  = "${local.item_validation_container_name}-stage"
-  storage_account_id    = azurerm_storage_account.storage_account.id
-  container_access_type = "private"
+  name                   = "${local.item_validation_container_name}-stage"
+  storage_account_name = azurerm_storage_account.storage_account.name
+  container_access_type  = "private"
 }
