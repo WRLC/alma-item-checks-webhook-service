@@ -6,7 +6,7 @@ resource "random_string" "db_name_suffix" {
 
 resource "azurerm_mysql_flexible_database" "database" {
   name                = "${var.project_name}${random_string.db_name_suffix.result}"
-  resource_group_name = var.resource_group_name
+  resource_group_name = var.mysql_resource_group_name
   server_name         = var.mysql_server_name
   charset             = "utf8mb4"
   collation           = "utf8mb4_unicode_ci"
@@ -39,7 +39,7 @@ resource "random_string" "stage_db_name_suffix" {
 
 resource "azurerm_mysql_flexible_database" "stage_database" {
   name                = "${var.project_name}-stage-${random_string.stage_db_name_suffix.result}"
-  resource_group_name = var.resource_group_name
+  resource_group_name = var.mysql_resource_group_name
   server_name         = var.mysql_server_name
   charset             = "utf8mb4"
   collation           = "utf8mb4_unicode_ci"
