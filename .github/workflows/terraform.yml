@@ -35,6 +35,8 @@ jobs:
         run: terraform -chdir=terraform plan
         env:
           TF_VAR_resource_group_name: ${{ secrets.RESOURCE_GROUP_NAME }}
+          TF_VAR_mysql_resource_group_name: ${{ secrets.MYSQL_RESOURCE_GROUP_NAME }}
+          TF_VAR_app_service_plan_name: ${{ secrets.APP_SERVICE_PLAN_NAME }}
           TF_VAR_location: ${{ secrets.LOCATION }}
           TF_VAR_mysql_server_name: ${{ secrets.MYSQL_SERVER_NAME }}
           TF_VAR_mysql_admin_username: ${{ secrets.MYSQL_ADMIN_USERNAME }}
@@ -51,6 +53,8 @@ jobs:
         run: terraform -chdir=terraform apply -auto-approve
         env:
           TF_VAR_resource_group_name: ${{ secrets.RESOURCE_GROUP_NAME }}
+          TF_VAR_mysql_resource_group_name: ${{ secrets.MYSQL_RESOURCE_GROUP_NAME }}
+          TF_VAR_app_service_plan_name: ${{ secrets.APP_SERVICE_PLAN_NAME }}
           TF_VAR_location: ${{ secrets.LOCATION }}
           TF_VAR_mysql_server_name: ${{ secrets.MYSQL_SERVER_NAME }}
           TF_VAR_mysql_admin_username: ${{ secrets.MYSQL_ADMIN_USERNAME }}
