@@ -30,9 +30,7 @@ priority = "primary"
 mypy = "^1.17.1"
 ruff = "^0.12.9"
 bandit = "^1.8.6"
-
-
-[tool.poetry.group.test.dependencies]
+pre-commit = "^4.3.0"
 pytest = "^8.4.1"
 
 [tool.mypy]
