@@ -1461,6 +1461,29 @@ url = "https://pkgs.dev.azure.com/WRLCdev/Python/_packaging/wrlc-python/pypi/sim
 reference = "wrlc-python"
 
 [[package]]
+name = "pytest-mock"
+version = "3.14.1"
+description = "Thin-wrapper around the mock package for easier use with pytest"
+optional = false
+python-versions = ">=3.8"
+groups = ["dev"]
+files = [
+    {file = "pytest_mock-3.14.1-py3-none-any.whl", hash = "sha256:178aefcd11307d874b4cd3100344e7e2d888d9791a6a1d9bfe90fbc1b74fd1d0"},
+    {file = "pytest_mock-3.14.1.tar.gz", hash = "sha256:159e9edac4c451ce77a5cdb9fc5d1100708d2dd4ba3c3df572f14097351af80e"},
+]
+
+[package.dependencies]
+pytest = ">=6.2.5"
+
+[package.extras]
+dev = ["pre-commit", "pytest-asyncio", "tox"]
+
+[package.source]
+type = "legacy"
+url = "https://pkgs.dev.azure.com/WRLCdev/Python/_packaging/wrlc-python/pypi/simple"
+reference = "wrlc-python"
+
+[[package]]
 name = "pyyaml"
 version = "6.0.2"
 description = "YAML parser and emitter for Python"
@@ -2072,4 +2095,4 @@ reference = "wrlc-python"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12"
-content-hash = "8483102204d2ae6b9eedeb75a55419b17382658914212f629e6be8613e993d40"
+content-hash = "2f622e9f38570827bde43fb5c56fef6fa5a5d9e3a2112a850d69a2be217d0b7b"
