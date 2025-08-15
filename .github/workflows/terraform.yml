@@ -21,6 +21,23 @@ jobs:
         with:
           terraform_version: '1.8.0'
 
+      - name: 'Login to Azure'
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: 'Add Firewall Rule'
+        id: firewall
+        run: |
+          IP_ADDRESS=$(curl -s ifconfig.me)
+          echo "ip=$IP_ADDRESS" >> $GITHUB_OUTPUT
+          az mysql flexible-server firewall-rule create \
+            --resource-group ${{ secrets.MYSQL_RESOURCE_GROUP_NAME }} \
+            --name ${{ secrets.MYSQL_SERVER_NAME }} \
+            --rule-name "github-actions-runner" \
+            --start-ip-address $IP_ADDRESS \
+            --end-ip-address $IP_ADDRESS
+
       - name: 'Terraform Init'
         run: terraform -chdir=terraform init
         env:
@@ -66,3 +83,12 @@ jobs:
           ARM_CLIENT_SECRET: ${{ secrets.AZURE_AD_CLIENT_SECRET }}
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           ARM_TENANT_ID: ${{ secrets.AZURE_AD_TENANT_ID }}
+
+      - name: 'Remove Firewall Rule'
+        if: always()
+        run: |
+          az mysql flexible-server firewall-rule delete \
+            --resource-group ${{ secrets.MYSQL_RESOURCE_GROUP_NAME }} \
+            --name ${{ secrets.MYSQL_SERVER_NAME }} \
+            --rule-name "github-actions-runner" \
+            --yes
