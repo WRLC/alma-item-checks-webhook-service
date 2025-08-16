@@ -21,11 +21,9 @@ jobs:
 
       - name: 'Install Poetry'
         uses: snok/install-poetry@v1
-        with:
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-          virtualenvs-path: .python_packages
-          installer-parallel: true
+
+      - name: 'Configure Poetry to build locally'
+        run: poetry config virtualenvs.in-project true
 
       - name: 'Configure Poetry for Private Repository'
         run: poetry config http-basic.wrlc-python __token__ ${{ secrets.AZURE_DEVOPS_PAT }}
@@ -63,8 +61,17 @@ jobs:
         env:
           SQLALCHEMY_CONNECTION_STRING: ${{ steps.get-conn-string.outputs.connection_string }}
 
+      - name: 'Construct deployment artifact'
+        run: |
+          mkdir -p deployment_package/.python_packages/lib/site-packages
+          cp -r ./.venv/lib/python3.12/site-packages/* deployment_package/.python_packages/lib/site-packages/
+          cp function_app.py host.json deployment_package/
+          cp -r alembic alma_item_checks_webhook_service deployment_package/
+
       - name: 'Zip artifact for deployment'
-        run: zip -r python-app.zip . -i .python_packages/\* function_app.py host.json alembic/\* alma_item_checks_webhook_service/\*
+        run: |
+          cd deployment_package
+          zip -r ../python-app.zip .
 
       - name: 'Upload artifact'
         uses: actions/upload-artifact@v4
