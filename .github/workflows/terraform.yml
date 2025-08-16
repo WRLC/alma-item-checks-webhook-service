@@ -8,10 +8,17 @@ on:
       - 'terraform/**'
       - '.github/workflows/terraform.yml'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   terraform:
     name: 'Terraform'
     runs-on: ubuntu-latest
+
+    timeout-minutes: 15
+
     steps:
       - name: 'Checkout'
         uses: actions/checkout@v3
@@ -51,6 +58,7 @@ jobs:
           ARM_ACCESS_KEY: ${{ secrets.ARM_ACCESS_KEY }}
 
       - name: 'Terraform Plan'
+        timeout-minutes: 8
         run: terraform -chdir=terraform plan
         env:
           TF_VAR_service_name: ${{ secrets.SERVICE_NAME }}
@@ -67,6 +75,7 @@ jobs:
 
       - name: 'Terraform Apply'
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        timeout-minutes: 10
         run: terraform -chdir=terraform apply -auto-approve
         env:
           TF_VAR_service_name: ${{ secrets.SERVICE_NAME }}
