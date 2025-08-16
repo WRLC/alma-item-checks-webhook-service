@@ -39,13 +39,11 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: 'Run database migrations'
+      - name: 'Set Connection String Env Var'
+        id: set-conn-string
         run: |
           FUNCTION_APP_NAME="almaitemchecks-${{ secrets.SERVICE_NAME }}"
-          echo "Listing all app settings for the staging slot of ${FUNCTION_APP_NAME}..."
-          az functionapp config appsettings list --name ${FUNCTION_APP_NAME} --resource-group ${{ secrets.RESOURCE_GROUP_NAME }} --slot stage -o table
-
-          echo "Attempting to retrieve SQLALCHEMY_CONNECTION_STRING..."
+          echo "Attempting to retrieve SQLALCHEMY_CONNECTION_STRING for ${FUNCTION_APP_NAME}..."
           CONNECTION_STRING=$(az functionapp config appsettings list --name ${FUNCTION_APP_NAME} --resource-group ${{ secrets.RESOURCE_GROUP_NAME }} --slot stage --query "[?name=='SQLALCHEMY_CONNECTION_STRING'].value" -o tsv)
 
           if [ -z "$CONNECTION_STRING" ]; then
@@ -53,11 +51,16 @@ jobs:
             exit 1
           fi
 
-          echo "Running Alembic migrations..."
-          SQLALCHEMY_DATABASE_URI=$CONNECTION_STRING poetry run alembic upgrade head
+          echo "Adding connection string to environment..."
+          echo "SQLALCHEMY_DATABASE_URI=$CONNECTION_STRING" >> $GITHUB_ENV
         env:
           RESOURCE_GROUP_NAME: ${{ secrets.RESOURCE_GROUP_NAME }}
           SERVICE_NAME: ${{ secrets.SERVICE_NAME }}
+
+      - name: 'Run Alembic Migrations'
+        run: |
+          echo "Running Alembic migrations..."
+          poetry run alembic upgrade head
 
       - name: 'Deploy to Azure Functions'
         uses: Azure/functions-action@v1
