@@ -62,6 +62,7 @@ jobs:
       - name: 'Terraform Plan'
         run: terraform -chdir=terraform plan
         env:
+          TF_VAR_service_name: ${{ secrets.SERVICE_NAME }}
           TF_VAR_resource_group_name: ${{ secrets.RESOURCE_GROUP_NAME }}
           TF_VAR_mysql_resource_group_name: ${{ secrets.MYSQL_RESOURCE_GROUP_NAME }}
           TF_VAR_app_service_plan_name: ${{ secrets.APP_SERVICE_PLAN_NAME }}
@@ -81,6 +82,7 @@ jobs:
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: terraform -chdir=terraform apply -auto-approve
         env:
+          TF_VAR_service_name: ${{ secrets.SERVICE_NAME }}
           TF_VAR_resource_group_name: ${{ secrets.RESOURCE_GROUP_NAME }}
           TF_VAR_mysql_resource_group_name: ${{ secrets.MYSQL_RESOURCE_GROUP_NAME }}
           TF_VAR_app_service_plan_name: ${{ secrets.APP_SERVICE_PLAN_NAME }}

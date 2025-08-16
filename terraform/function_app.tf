@@ -4,7 +4,7 @@ data "azurerm_service_plan" "app_service_plan" {
 }
 
 resource "azurerm_linux_function_app" "function_app" {
-  name                       = var.function_app_name
+  name                       = "${var.project_name}-${var.service_name}"
   resource_group_name        = var.resource_group_name
   location                   = var.location
   service_plan_id            = data.azurerm_service_plan.app_service_plan.id

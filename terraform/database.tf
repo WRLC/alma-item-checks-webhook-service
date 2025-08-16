@@ -5,7 +5,7 @@ resource "random_string" "db_name_suffix" {
 }
 
 resource "azurerm_mysql_flexible_database" "database" {
-  name                = "${var.project_name}${random_string.db_name_suffix.result}"
+  name                = "${var.project_name}-${var.service_name}-${random_string.db_name_suffix.result}"
   resource_group_name = var.mysql_resource_group_name
   server_name         = var.mysql_server_name
   charset             = "utf8mb4"
@@ -18,7 +18,7 @@ resource "random_password" "mysql_user_password" {
 }
 
 resource "mysql_user" "user" {
-  user               = var.mysql_user_username
+  user               = "${var.project_name}_${var.service_name}_user"
   host               = "%"
   plaintext_password = random_password.mysql_user_password.result
 }
@@ -38,7 +38,7 @@ resource "random_string" "stage_db_name_suffix" {
 }
 
 resource "azurerm_mysql_flexible_database" "stage_database" {
-  name                = "${var.project_name}-stage-${random_string.stage_db_name_suffix.result}"
+  name                = "${var.project_name}-${var.service_name}-stage-${random_string.stage_db_name_suffix.result}"
   resource_group_name = var.mysql_resource_group_name
   server_name         = var.mysql_server_name
   charset             = "utf8mb4"
@@ -51,7 +51,7 @@ resource "random_password" "stage_mysql_user_password" {
 }
 
 resource "mysql_user" "stage_user" {
-  user               = "${var.mysql_user_username}-stage"
+  user               = "${var.project_name}_${var.service_name}_user_stage"
   host               = "%"
   plaintext_password = random_password.stage_mysql_user_password.result
 }
