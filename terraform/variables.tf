@@ -13,10 +13,6 @@ variable "resource_group_name" {
   type = string
 }
 
-variable "mysql_resource_group_name" {
-  type = string
-}
-
 variable "app_service_plan_name" {
   type = string
 }
@@ -37,11 +33,6 @@ variable "mysql_admin_username" {
 variable "mysql_admin_password" {
   type      = string
   sensitive = true
-}
-
-variable "mysql_user_username" {
-  type    = string
-  default = "almaitemchecks_user"
 }
 
 variable "function_app_name" {
