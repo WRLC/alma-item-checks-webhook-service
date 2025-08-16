@@ -1,3 +1,4 @@
+"""Test configurations"""
 import pytest
 import importlib
 
@@ -31,10 +32,8 @@ def test_get_required_env_variable_missing(mocker):
 @pytest.mark.parametrize(
     "env_var, set_value, expected_value, default_value",
     [
-        ("API_CLIENT_TIMEOUT", "120", 120, 90),
         ("BARCODE_RETRIEVAL_QUEUE", "custom-queue", "custom-queue", "barcode-retrieval-queue"),
         ("ITEM_VALIDATION_QUEUE", "validation-queue", "validation-queue", "item-validation-queue"),
-        ("ITEM_VALIDATION_CONTAINER", "validation-container", "validation-container", "item-validation-container"),
     ]
 )
 def test_optional_env_variables(mocker, base_env, env_var, set_value, expected_value, default_value):
@@ -58,5 +57,4 @@ def test_required_env_variables_loaded(mocker, base_env):
     importlib.reload(config)
 
     assert config.STORAGE_CONNECTION_STRING == base_env["AzureWebJobsStorage"]
-    assert config.SQLALCHEMY_CONNECTION_STRING == base_env["SQLALCHEMY_CONNECTION_STRING"]
     assert config.WEBHOOK_SECRET == base_env["WEBHOOK_SECRET"]

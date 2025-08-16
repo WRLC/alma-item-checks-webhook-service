@@ -1,29 +1,39 @@
 """Storage Helpers for Azure Blob and Queue Services"""
+
+import json
 import logging
 from azure.core.paging import ItemPaged
 from typing import Dict, List, Union, Optional, Any
 
 from azure.data.tables import TableServiceClient, UpdateMode, TableClient, TableEntity
-from azure.storage.blob import BlobServiceClient, ContentSettings, BlobClient, ContainerClient, BlobProperties
+from azure.storage.blob import (
+    BlobServiceClient,
+    ContentSettings,
+    BlobClient,
+    ContainerClient,
+    BlobProperties,
+)
 from azure.storage.queue import QueueServiceClient, QueueClient, TextBase64EncodePolicy
 from azure.core.exceptions import ResourceNotFoundError, ResourceExistsError
 
 from alma_item_checks_webhook_service.config import STORAGE_CONNECTION_STRING
-from alma_item_checks_webhook_service.services.data_service import DataService
 
 
 # noinspection PyMethodMayBeStatic
 class StorageService:
     """Service for Azure Storage operations."""
+
     def __init__(self) -> None:
-        self.data_service: DataService = DataService()
+        pass
 
     def get_blob_service_client(self) -> BlobServiceClient:
         """Returns an authenticated BlobServiceClient instance."""
         try:
             return BlobServiceClient.from_connection_string(STORAGE_CONNECTION_STRING)
         except ValueError as e:
-            logging.error(msg=f"StorageService.get_blob_service_client: Invalid storage connection string format: {e}")
+            logging.error(
+                msg=f"StorageService.get_blob_service_client: Invalid storage connection string format: {e}"
+            )
             raise ValueError(f"Invalid storage connection string format: {e}") from e
 
     def get_queue_service_client(self) -> QueueServiceClient:
@@ -34,22 +44,28 @@ class StorageService:
             # If using raw strings, set message_encode_policy=None, message_decode_policy=None.
             return QueueServiceClient.from_connection_string(
                 conn_str=STORAGE_CONNECTION_STRING,
-                message_encode_policy=TextBase64EncodePolicy()  # Encodes outgoing messages to Base64
+                message_encode_policy=TextBase64EncodePolicy(),  # Encodes outgoing messages to Base64
             )
         except ValueError as e:
-            logging.error(msg=f"StorageService.get_queue_service_client: Invalid storage connection string format: {e}")
+            logging.error(
+                msg=f"StorageService.get_queue_service_client: Invalid storage connection string format: {e}"
+            )
             raise ValueError(f"Invalid storage connection string format: {e}") from e
 
     def get_table_service_client(self) -> TableServiceClient:
         """Returns an authenticated TableServiceClient instance."""
         try:
-            return TableServiceClient.from_connection_string(conn_str=STORAGE_CONNECTION_STRING)
+            return TableServiceClient.from_connection_string(
+                conn_str=STORAGE_CONNECTION_STRING
+            )
         except ValueError as e:
             logging.error(
                 msg=f"StorageService.get_table_service_client: Invalid storage connection string format for Table "
-                    f"Service: {e}"
+                f"Service: {e}"
             )
-            raise ValueError(f"Invalid storage connection string format for Table Service: {e}") from e
+            raise ValueError(
+                f"Invalid storage connection string format for Table Service: {e}"
+            ) from e
 
     def get_queue_client(self, queue_name: str) -> QueueClient:
         """
@@ -57,24 +73,32 @@ class StorageService:
         Does NOT automatically create the queue.
         """
         if not queue_name:
-            logging.error(msg="StorageService.get_queue_client: Queue name cannot be empty.")
+            logging.error(
+                msg="StorageService.get_queue_client: Queue name cannot be empty."
+            )
             raise ValueError("Queue name cannot be empty.")
         try:
             # Inherits policy from service client if created that way, or specify explicitly
             return QueueClient.from_connection_string(
                 STORAGE_CONNECTION_STRING,
                 queue_name,
-                message_encode_policy=TextBase64EncodePolicy()
+                message_encode_policy=TextBase64EncodePolicy(),
             )
         except ValueError as e:
             logging.error(
                 msg=f"StorageService.get_queue_client: Invalid storage connection string or queue name "
-                    f"'{queue_name}': {e}"
+                f"'{queue_name}': {e}"
             )
-            raise ValueError(f"Invalid storage connection string or queue name '{queue_name}': {e}") from e
+            raise ValueError(
+                f"Invalid storage connection string or queue name '{queue_name}': {e}"
+            ) from e
 
     def upload_blob_data(
-            self, container_name: str, blob_name: str, data: Union[str, bytes, Dict, List], overwrite: bool = True
+        self,
+        container_name: str,
+        blob_name: str,
+        data: Union[str, bytes, Dict, List],
+        overwrite: bool = True,
     ):
         """
         Uploads data to Azure Blob Storage. Serializes Python dicts/lists to JSON.
@@ -92,17 +116,18 @@ class StorageService:
             azure.core.exceptions.ResourceExistsError: If blob exists and overwrite is False.
         """
         if not container_name or not blob_name:
-            logging.error(msg="StorageService.upload_blob_data: Container name and blob name cannot be empty.")
+            logging.error(
+                msg="StorageService.upload_blob_data: Container name and blob name cannot be empty."
+            )
             raise ValueError("Container name and blob name cannot be empty.")
 
         logging.debug(
             msg=f"StorageService.upload_blob_data: Attempting to upload blob to {container_name}/{blob_name} "
-                f"(overwrite={overwrite})"
+            f"(overwrite={overwrite})"
         )
         try:
             blob_client: BlobClient = self.get_blob_service_client().get_blob_client(
-                container=container_name,
-                blob=blob_name
+                container=container_name, blob=blob_name
             )
         except ValueError as e:  # Catch connection string format error from getter
             logging.error(
@@ -110,33 +135,28 @@ class StorageService:
             )
             raise
 
-        data_service: DataService = DataService()
-
         try:
             upload_data: Union[str, bytes]
             settings_to_pass: Optional[ContentSettings] = None
 
             if isinstance(data, (dict, list)):
-                upload_data = data_service.serialize_data(data=data).encode()
-                settings_to_pass = ContentSettings(content_type='application/json')
+                upload_data = json.dumps(data, ensure_ascii=False).encode()
+                settings_to_pass = ContentSettings(content_type="application/json")
 
             elif isinstance(data, str):
                 upload_data = data.encode()
-                settings_to_pass = ContentSettings(content_type='text/plain; charset=utf-8')
+                settings_to_pass = ContentSettings(
+                    content_type="text/plain; charset=utf-8"
+                )
 
             elif isinstance(data, bytes):
                 upload_data = data
-            else:
-                logging.error(
-                    msg=f"StorageService.upload_blob_data: Unsupported data type for upload_blob_data: {type(data)}"
-                )
-                raise TypeError(f"Unsupported data type for upload_blob_data: {type(data)}")
 
             blob_client.upload_blob(
                 data=upload_data,
                 blob_type="BlockBlob",
                 overwrite=overwrite,
-                content_settings=settings_to_pass
+                content_settings=settings_to_pass,
             )
 
             logging.info(
@@ -147,13 +167,13 @@ class StorageService:
             if not overwrite:
                 logging.warning(
                     msg=f"StorageService.upload_blob_data: Blob {container_name}/{blob_name} already exists and "
-                        f"overwrite is False."
+                    f"overwrite is False."
                 )
                 raise
             else:
                 logging.error(
                     msg=f"StorageService.upload_blob_data: Unexpected ResourceExistsError despite overwrite=True for "
-                        f"{container_name}/{blob_name}: {e}"
+                    f"{container_name}/{blob_name}: {e}"
                 )
                 raise
         except Exception as e:
@@ -162,7 +182,9 @@ class StorageService:
             )
             raise
 
-    def download_blob_as_text(self, container_name: str, blob_name: str, encoding: str = 'utf-8') -> str:
+    def download_blob_as_text(
+        self, container_name: str, blob_name: str, encoding: str = "utf-8"
+    ) -> str:
         """
         Downloads blob content as a decoded text string.
 
@@ -180,17 +202,18 @@ class StorageService:
             azure.core.exceptions.ServiceRequestError: For network issues.
         """
         if not container_name or not blob_name:
-            logging.error(msg="StorageService.download_blob_as_text: Container name and blob name cannot be empty.")
+            logging.error(
+                msg="StorageService.download_blob_as_text: Container name and blob name cannot be empty."
+            )
             raise ValueError("Container name and blob name cannot be empty.")
 
         logging.debug(
             msg=f"StorageService.download_blob_as_text: Attempting to download blob as text from "
-                f"{container_name}/{blob_name}"
+            f"{container_name}/{blob_name}"
         )
 
         blob_client: BlobClient = self.get_blob_service_client().get_blob_client(
-            container=container_name,
-            blob=blob_name
+            container=container_name, blob=blob_name
         )
 
         try:
@@ -200,22 +223,26 @@ class StorageService:
             )
             return blob_content_bytes.decode(encoding=encoding)
         except ResourceNotFoundError:
-            logging.error(msg=f"StorageService.download_blob_as_text: Blob not found: {container_name}/{blob_name}")
+            logging.error(
+                msg=f"StorageService.download_blob_as_text: Blob not found: {container_name}/{blob_name}"
+            )
             raise
         except UnicodeDecodeError as e:
             logging.error(
                 msg=f"StorageService.download_blob_as_text: Failed to decode blob {container_name}/{blob_name} "
-                    f"using encoding '{encoding}': {e}"
+                f"using encoding '{encoding}': {e}"
             )
             raise e
         except Exception as e:
             logging.error(
                 msg=f"StorageService.download_blob_as_text: Failed to download blob {container_name}/{blob_name} "
-                    f"as text: {e}"
+                f"as text: {e}"
             )
             raise
 
-    def download_blob_as_json(self, container_name: str, blob_name: str, encoding: str = 'utf-8') -> Union[Dict, List]:
+    def download_blob_as_json(
+        self, container_name: str, blob_name: str, encoding: str = "utf-8"
+    ) -> Union[Dict, List]:
         """
         Downloads blob content and parses it as JSON.
 
@@ -229,26 +256,26 @@ class StorageService:
 
         Raises:
             ValueError: If container or blob name is invalid.
-            DataSerializationError: If the content cannot be parsed as JSON.
+            json.JSONDecodeError: If the content cannot be parsed as JSON.
             azure.core.exceptions.ResourceNotFoundError: If the blob does not exist.
             azure.core.exceptions.ServiceRequestError: For network issues.
         """
         text_content: str = self.download_blob_as_text(
-            container_name=container_name,
-            blob_name=blob_name,
-            encoding=encoding
+            container_name=container_name, blob_name=blob_name, encoding=encoding
         )
 
         try:
-            return self.data_service.deserialize_data(text_content)
-        except Exception as e:
+            return json.loads(text_content)
+        except json.JSONDecodeError as e:
             logging.error(
                 msg=f"StorageService.download_blob_as_json: Failed to parse blob content from "
-                    f"{container_name}/{blob_name} as JSON: {e}"
+                f"{container_name}/{blob_name} as JSON: {e}"
             )
             raise
 
-    def list_blobs(self, container_name: str, name_starts_with: Optional[str] = None) -> List[str]:
+    def list_blobs(
+        self, container_name: str, name_starts_with: Optional[str] = None
+    ) -> List[str]:
         """
         Lists blob names in a container, optionally filtering by prefix.
 
@@ -265,22 +292,28 @@ class StorageService:
             azure.core.exceptions.ServiceRequestError: For network issues.
         """
         if not container_name:
-            logging.error(msg="StorageService.list_blobs: Container name cannot be empty.")
+            logging.error(
+                msg="StorageService.list_blobs: Container name cannot be empty."
+            )
             raise ValueError("Container name cannot be empty.")
 
         logging.debug(
             msg=f"StorageService.list_blobs: Listing blobs in container '{container_name}' starting with "
-                f"'{name_starts_with or ''}'"
+            f"'{name_starts_with or ''}'"
         )
         try:
-            container_client: ContainerClient = self.get_blob_service_client().get_container_client(
-                container=container_name
+            container_client: ContainerClient = (
+                self.get_blob_service_client().get_container_client(
+                    container=container_name
+                )
             )
-            blob_items: ItemPaged[BlobProperties] = container_client.list_blobs(name_starts_with=name_starts_with)
+            blob_items: ItemPaged[BlobProperties] = container_client.list_blobs(
+                name_starts_with=name_starts_with
+            )
             blob_names: List[str] = [blob.name for blob in blob_items]
             logging.info(
                 msg=f"StorageService.list_blobs: Found {len(blob_names)} blobs in '{container_name}' matching prefix "
-                    f"'{name_starts_with or ''}'."
+                f"'{name_starts_with or ''}'."
             )
             return blob_names
         except ResourceNotFoundError:
@@ -289,7 +322,9 @@ class StorageService:
             )
             return []
         except Exception as e:
-            logging.error(msg=f"StorageService.list_blobs: Failed to list blobs in container '{container_name}': {e}")
+            logging.error(
+                msg=f"StorageService.list_blobs: Failed to list blobs in container '{container_name}': {e}"
+            )
             raise
 
     def delete_blob(self, container_name: str, blob_name: str):
@@ -305,27 +340,36 @@ class StorageService:
             azure.core.exceptions.ServiceRequestError: For network issues.
         """
         if not container_name or not blob_name:
-            logging.error(msg="StorageService.delete_blob: Container name and blob name cannot be empty.")
+            logging.error(
+                msg="StorageService.delete_blob: Container name and blob name cannot be empty."
+            )
             raise ValueError("Container name and blob name cannot be empty.")
 
-        logging.debug(msg=f"StorageService.delete_blob: Attempting to delete blob: {container_name}/{blob_name}")
+        logging.debug(
+            msg=f"StorageService.delete_blob: Attempting to delete blob: {container_name}/{blob_name}"
+        )
         blob_client: BlobClient = self.get_blob_service_client().get_blob_client(
-            container=container_name,
-            blob=blob_name
+            container=container_name, blob=blob_name
         )
         try:
             blob_client.delete_blob(delete_snapshots="include")
-            logging.info(msg=f"StorageService.delete_blob: Successfully deleted blob: {container_name}/{blob_name}")
+            logging.info(
+                msg=f"StorageService.delete_blob: Successfully deleted blob: {container_name}/{blob_name}"
+            )
         except ResourceNotFoundError:
             logging.warning(
                 msg=f"StorageService.delete_blob: Blob not found during deletion, presumed already deleted: "
-                    f"{container_name}/{blob_name}"
+                f"{container_name}/{blob_name}"
             )
         except Exception as e:
-            logging.error(msg=f"StorageService.delete_blob: Failed to delete blob {container_name}/{blob_name}: {e}")
+            logging.error(
+                msg=f"StorageService.delete_blob: Failed to delete blob {container_name}/{blob_name}: {e}"
+            )
             raise
 
-    def send_queue_message(self, queue_name: str, message_content: Union[Dict, List, str]):
+    def send_queue_message(
+        self, queue_name: str, message_content: Union[Dict, List, str]
+    ):
         """
         Sends a message to the specified Azure Queue. Serializes dicts/lists to JSON.
 
@@ -339,28 +383,27 @@ class StorageService:
             azure.core.exceptions.ServiceRequestError: For network issues.
         """
         if not queue_name:
-            logging.error(msg="StorageService.send_queue_message: Queue name cannot be empty.")
+            logging.error(
+                msg="StorageService.send_queue_message: Queue name cannot be empty."
+            )
             raise ValueError("Queue name cannot be empty.")
 
         message_str: str
         try:
             if isinstance(message_content, (dict, list)):
-                message_str = self.data_service.serialize_data(data=message_content)
+                message_str = json.dumps(message_content, ensure_ascii=False)
             elif isinstance(message_content, str):
                 message_str = message_content
-            else:
-                logging.error(
-                    msg=f"StorageService.send_queue_message: Unsupported message content type: {type(message_content)}"
-                )
-                raise TypeError(f"Unsupported message content type: {type(message_content)}")
 
             logging.debug(
                 msg=f"StorageService.send_queue_message: Attempting to send message to queue '{queue_name}': "
-                    f"{message_str[:100]}..."
+                f"{message_str[:100]}..."
             )
             queue_client: QueueClient = self.get_queue_client(queue_name=queue_name)
             queue_client.send_message(content=message_str)
-            logging.info(msg=f"StorageService.send_queue_message: Successfully sent message to queue '{queue_name}'")
+            logging.info(
+                msg=f"StorageService.send_queue_message: Successfully sent message to queue '{queue_name}'"
+            )
 
         except Exception as e:
             logging.error(
@@ -368,7 +411,9 @@ class StorageService:
             )
             raise
 
-    def get_entities(self, table_name: str, filter_query: Optional[str] = None) -> List[Dict[str, Any]]:
+    def get_entities(
+        self, table_name: str, filter_query: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         """
         Retrieves entities from a specified Azure Table, with an optional filter.
 
@@ -387,15 +432,19 @@ class StorageService:
             azure.core.exceptions.ServiceRequestError: For network or other service issues.
         """
         if not table_name:
-            logging.error(msg="StorageService.get_entities: Table name cannot be empty.")
+            logging.error(
+                msg="StorageService.get_entities: Table name cannot be empty."
+            )
             raise ValueError("Table name cannot be empty.")
 
         logging.debug(
             msg=f"StorageService.get_entities: Querying entities from table '{table_name}' with filter: "
-                f"'{filter_query or 'All'}'"
+            f"'{filter_query or 'All'}'"
         )
         try:
-            table_client: TableClient = self.get_table_service_client().get_table_client(table_name=table_name)
+            table_client: TableClient = (
+                self.get_table_service_client().get_table_client(table_name=table_name)
+            )
             entities: List[Dict[str, Any]]
 
             if filter_query:
@@ -411,13 +460,13 @@ class StorageService:
         except ResourceNotFoundError:
             logging.warning(
                 msg=f"StorageService.get_entities: Table '{table_name}' not found while querying entities. "
-                    f"Returning empty list."
+                f"Returning empty list."
             )
             return []
         except Exception as e:
             logging.error(
                 msg=f"StorageService.get_entities: Failed to query entities from table '{table_name}': {e}",
-                exc_info=True
+                exc_info=True,
             )
             raise
 
@@ -436,19 +485,23 @@ class StorageService:
             azure.core.exceptions.ServiceRequestError: For network or other service issues.
         """
         if not all([table_name, partition_key, row_key]):
-            logging.error(msg="StorageService.delete_entity: Table name, partition key, and row key cannot be empty.")
+            logging.error(
+                msg="StorageService.delete_entity: Table name, partition key, and row key cannot be empty."
+            )
             raise ValueError("Table name, partition key, and row key cannot be empty.")
 
         logging.debug(
             msg=f"StorageService.delete_entity: Attempting to delete entity from {table_name} "
-                f"with PK='{partition_key}' and RK='{row_key}'"
+            f"with PK='{partition_key}' and RK='{row_key}'"
         )
         try:
-            table_client: TableClient = self.get_table_service_client().get_table_client(table_name=table_name)
+            table_client: TableClient = (
+                self.get_table_service_client().get_table_client(table_name=table_name)
+            )
             table_client.delete_entity(partition_key=partition_key, row_key=row_key)
             logging.info(
                 msg=f"StorageService.delete_entity: Successfully deleted entity from {table_name} with RowKey "
-                    f"'{row_key}'."
+                f"'{row_key}'."
             )
         except ResourceNotFoundError:
             logging.warning(
@@ -458,8 +511,8 @@ class StorageService:
         except Exception as e:
             logging.error(
                 msg=f"StorageService.delete_entity: Failed to delete entity from {table_name} with "
-                    f"RowKey '{row_key}': {e}",
-                exc_info=True
+                f"RowKey '{row_key}': {e}",
+                exc_info=True,
             )
             raise
 
@@ -478,27 +531,33 @@ class StorageService:
             azure.core.exceptions.ServiceRequestError: For network or other service issues.
         """
         if not table_name:
-            logging.error(msg="StorageService.upsert_entity: Table name cannot be empty.")
+            logging.error(
+                msg="StorageService.upsert_entity: Table name cannot be empty."
+            )
             raise ValueError("Table name cannot be empty.")
         if not all(k in entity for k in ["PartitionKey", "RowKey"]):
             logging.error(msg="Entity must contain 'PartitionKey' and 'RowKey'.")
             raise ValueError("Entity must contain 'PartitionKey' and 'RowKey'.")
 
-        logging.debug(msg=f"StorageService.upsert_entity: Attempting to upsert entity into table '{table_name}'")
+        logging.debug(
+            msg=f"StorageService.upsert_entity: Attempting to upsert entity into table '{table_name}'"
+        )
         try:
             self.create_table_if_not_exists(table_name)
-            table_client: TableClient = self.get_table_service_client().get_table_client(table_name)
+            table_client: TableClient = (
+                self.get_table_service_client().get_table_client(table_name)
+            )
 
             table_client.upsert_entity(entity=entity, mode=UpdateMode.REPLACE)
             logging.info(
                 msg=f"StorageService.upsert_entity: Successfully upserted entity with RowKey '{entity.get('RowKey')}' "
-                    f"into table '{table_name}'."
+                f"into table '{table_name}'."
             )
 
         except Exception as e:
             logging.error(
                 msg=f"StorageService.upsert_entity: Failed to upsert entity into table '{table_name}': {e}",
-                exc_info=True
+                exc_info=True,
             )
             raise
 
@@ -510,17 +569,25 @@ class StorageService:
             table_name: The name of the table to create.
         """
         if not table_name:
-            logging.error("StorageService.create_table_if_not_exists: Table name cannot be empty.")
+            logging.error(
+                "StorageService.create_table_if_not_exists: Table name cannot be empty."
+            )
             raise ValueError("Table name cannot be empty.")
 
         try:
             table_service_client = self.get_table_service_client()
             table_service_client.create_table(table_name=table_name)
-            logging.info(f"StorageService.create_table_if_not_exists: Table '{table_name}' created or already exists.")
+            logging.info(
+                f"StorageService.create_table_if_not_exists: Table '{table_name}' created or already exists."
+            )
         except ResourceExistsError:
-            logging.debug(f"StorageService.create_table_if_not_exists: Table '{table_name}' already exists.")
+            logging.debug(
+                f"StorageService.create_table_if_not_exists: Table '{table_name}' already exists."
+            )
         except Exception as e:
-            logging.error(f"StorageService.create_table_if_not_exists: Failed to create table '{table_name}': {e}")
+            logging.error(
+                f"StorageService.create_table_if_not_exists: Failed to create table '{table_name}': {e}"
+            )
             raise
 
     def delete_table(self, table_name: str):
@@ -537,14 +604,22 @@ class StorageService:
         try:
             table_service_client = self.get_table_service_client()
             table_service_client.delete_table(table_name=table_name)
-            logging.info(f"StorageService.delete_table: Successfully deleted table '{table_name}'.")
+            logging.info(
+                f"StorageService.delete_table: Successfully deleted table '{table_name}'."
+            )
         except ResourceNotFoundError:
-            logging.warning(f"StorageService.delete_table: Table '{table_name}' not found, presumed already deleted.")
+            logging.warning(
+                f"StorageService.delete_table: Table '{table_name}' not found, presumed already deleted."
+            )
         except Exception as e:
-            logging.error(f"StorageService.delete_table: Failed to delete table '{table_name}': {e}")
+            logging.error(
+                f"StorageService.delete_table: Failed to delete table '{table_name}': {e}"
+            )
             raise
 
-    def delete_entities_batch(self, table_name: str, entities: List[Dict[str, Any]]) -> None:
+    def delete_entities_batch(
+        self, table_name: str, entities: List[Dict[str, Any]]
+    ) -> None:
         """
         Deletes a list of entities from a table in batches of 100.
 
@@ -557,14 +632,19 @@ class StorageService:
 
         table_client = self.get_table_service_client().get_table_client(table_name)
         for i in range(0, len(entities), 100):
-            batch = entities[i:i + 100]
+            batch = entities[i : i + 100]
             operations = [
-                ("delete", TableEntity(PartitionKey=e["PartitionKey"], RowKey=e["RowKey"]))
+                (
+                    "delete",
+                    TableEntity(PartitionKey=e["PartitionKey"], RowKey=e["RowKey"]),
+                )
                 for e in batch
             ]
             try:
                 table_client.submit_transaction(operations=operations)
-                logging.info(f"Successfully deleted batch of {len(operations)} entities from '{table_name}'.")
+                logging.info(
+                    f"Successfully deleted batch of {len(operations)} entities from '{table_name}'."
+                )
             except Exception as e:
                 logging.error(f"Error deleting batch from table '{table_name}': {e}")
                 raise

@@ -14,8 +14,6 @@ resource "azurerm_storage_account" "storage_account" {
 
 locals {
   barcode_retrieval_queue_name = "${var.service_name}-barcode-retrieval-queue"
-  item_validation_queue_name   = "${var.service_name}-item-validation-queue"
-  item_validation_container_name = "${var.service_name}-item-validation-container"
 }
 
 resource "azurerm_storage_queue" "barcode_retrieval_queue" {
@@ -23,30 +21,8 @@ resource "azurerm_storage_queue" "barcode_retrieval_queue" {
   storage_account_name = azurerm_storage_account.storage_account.name
 }
 
-resource "azurerm_storage_queue" "item_validation_queue" {
-  name                 = local.item_validation_queue_name
-  storage_account_name = azurerm_storage_account.storage_account.name
-}
-
-resource "azurerm_storage_container" "item_validation_container" {
-  name                   = local.item_validation_container_name
-  storage_account_name = azurerm_storage_account.storage_account.name
-  container_access_type  = "private"
-}
-
 # Stage Storage Resources
 resource "azurerm_storage_queue" "stage_barcode_retrieval_queue" {
   name                 = "${local.barcode_retrieval_queue_name}-stage"
   storage_account_name = azurerm_storage_account.storage_account.name
-}
-
-resource "azurerm_storage_queue" "stage_item_validation_queue" {
-  name                 = "${local.item_validation_queue_name}-stage"
-  storage_account_name = azurerm_storage_account.storage_account.name
-}
-
-resource "azurerm_storage_container" "stage_item_validation_container" {
-  name                   = "${local.item_validation_container_name}-stage"
-  storage_account_name = azurerm_storage_account.storage_account.name
-  container_access_type  = "private"
 }

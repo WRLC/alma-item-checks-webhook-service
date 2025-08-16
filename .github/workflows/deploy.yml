@@ -31,36 +31,6 @@ jobs:
       - name: 'Build with Poetry'
         run: poetry install --without dev
 
-      - name: 'Login to Azure'
-        uses: azure/login@v1
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: 'Get Connection String'
-        id: get-conn-string
-        run: |
-          FUNCTION_APP_NAME="almaitemchecks-${{ secrets.SERVICE_NAME }}"
-          echo "Attempting to retrieve SQLALCHEMY_CONNECTION_STRING for ${FUNCTION_APP_NAME}..."
-          CONNECTION_STRING=$(az functionapp config appsettings list --name ${FUNCTION_APP_NAME} --resource-group ${{ secrets.RESOURCE_GROUP_NAME }} --slot stage --query "[?name=='SQLALCHEMY_CONNECTION_STRING'].value" -o tsv)
-
-          if [ -z "$CONNECTION_STRING" ]; then
-            echo "::error::Could not find SQLALCHEMY_CONNECTION_STRING in the staging slot's app settings."
-            exit 1
-          fi
-
-          echo "Setting connection string as step output..."
-          echo "connection_string=$CONNECTION_STRING" >> $GITHUB_OUTPUT
-        env:
-          RESOURCE_GROUP_NAME: ${{ secrets.RESOURCE_GROUP_NAME }}
-          SERVICE_NAME: ${{ secrets.SERVICE_NAME }}
-
-      - name: 'Run Alembic Migrations'
-        run: |
-          echo "Running Alembic migrations..."
-          poetry run alembic upgrade head
-        env:
-          SQLALCHEMY_CONNECTION_STRING: ${{ steps.get-conn-string.outputs.connection_string }}
-
       - name: 'Construct deployment artifact'
         run: |
           mkdir -p deployment_package/.python_packages/lib/site-packages

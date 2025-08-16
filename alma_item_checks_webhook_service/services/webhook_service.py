@@ -12,11 +12,6 @@ from alma_item_checks_webhook_service.config import (
     WEBHOOK_SECRET,
     BARCODE_RETRIEVAL_QUEUE,
 )
-from alma_item_checks_webhook_service.models.institution import Institution
-from alma_item_checks_webhook_service.database import SessionMaker
-from alma_item_checks_webhook_service.services.institution_service import (
-    InstitutionService,
-)
 from alma_item_checks_webhook_service.services.storage_service import StorageService
 from alma_item_checks_webhook_service.utils.security import validate_webhook_signature
 
@@ -94,13 +89,6 @@ class WebhookService:
         Returns:
             func.HttpResponse | dict[str, Any]: A response object if unsuccessful, otherwise request data dictionary
         """
-        institution: Institution | None = self.get_institution()
-
-        if not institution:
-            return func.HttpResponse(
-                "Internal Server Error: Unable to find institution", status_code=500
-            )
-
         if not self.validate_signature():
             logging.error(
                 "WebhookService.parse_webhook: Invalid webhook signature received."
@@ -108,6 +96,20 @@ class WebhookService:
             return func.HttpResponse(
                 "Internal Server Error: Invalid webhook signature", status_code=500
             )
+        try:
+            institution_code: str | None = self.req.params.get("institution")
+            if not institution_code:
+                logging.error(
+                    "WebhookService.get_request_data_from_webhook: Missing institution parameter"
+                )
+                return func.HttpResponse(
+                    "Missing institution parameter", status_code=400
+                )
+        except ValueError:
+            logging.error(
+                "WebhookService.get_request_data_from_webhook: Invalid institution parameter"
+            )
+            return func.HttpResponse("Invalid institution parameter", status_code=400)
 
         try:
             request_body = self.req.get_json()
@@ -118,38 +120,10 @@ class WebhookService:
             return func.HttpResponse("Invalid JSON in request body", status_code=400)
 
         return {
-            "institution": institution.code,
+            "institution": institution_code,
             "request": request_body,
             "job": "bp_webhook_barcode_re_retrieve",
         }
-
-    def get_institution(self) -> Institution | None:
-        """Get the institution
-
-        Returns:
-            Institution | None: The institution object if found, None otherwise
-        """
-        institution_code: str = self.req.params.get("institution")
-
-        if not institution_code:
-            logging.error(
-                "WebhookService.get_institution: Missing institution parameter"
-            )
-            return None
-
-        with SessionMaker() as db:
-            institution_service: InstitutionService = InstitutionService(db)
-            institution: Institution | None = (
-                institution_service.get_institution_by_code(institution_code)
-            )
-
-        if not institution:
-            logging.error(
-                f"webhook_service.get_institution: Institution not found: {institution_code}"
-            )
-            return None
-
-        return institution
 
     def activate_webhook(self) -> func.HttpResponse | None:
         """Activate the webhook by responding to a challenge request."""
