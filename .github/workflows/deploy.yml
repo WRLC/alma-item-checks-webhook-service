@@ -1,0 +1,75 @@
+name: 'Build and Deploy Azure Function'
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'alma_item_checks_webhook_service/**'
+      - 'pyproject.toml'
+      - 'alembic/**'
+      - 'function_app.py'
+      - '.github/workflows/deploy.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: Build
+    steps:
+      - name: 'Checkout'
+        uses: actions/checkout@v3
+
+      - name: 'Install Poetry'
+        uses: snok/install-poetry@v1
+
+      - name: 'Configure Poetry to build locally'
+        run: poetry config virtualenvs.in-project true
+
+      - name: 'Configure Poetry for Private Repository'
+        run: poetry config http-basic.wrlc-python __token__ ${{ secrets.AZURE_DEVOPS_PAT }}
+
+      - name: 'Build with Poetry'
+        run: poetry install --without dev
+
+      - name: 'Construct deployment artifact'
+        run: |
+          mkdir -p deployment_package/.python_packages/lib/site-packages
+          cp -r ./.venv/lib/python3.12/site-packages/* deployment_package/.python_packages/lib/site-packages/
+          cp function_app.py host.json deployment_package/
+          cp -r alembic alma_item_checks_webhook_service deployment_package/
+
+      - name: 'Zip artifact for deployment'
+        run: |
+          cd deployment_package
+          zip -r ../python-app.zip .
+
+      - name: 'Upload artifact'
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-app
+          path: python-app.zip
+
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy to Stage
+    needs: build
+    steps:
+      - name: 'Download artifact'
+        uses: actions/download-artifact@v4
+        with:
+          name: python-app
+
+      - name: 'Login to Azure'
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: 'Deploy to Azure Functions'
+        uses: Azure/functions-action@v1
+        with:
+          app-name: "almaitemchecks-${{ secrets.SERVICE_NAME }}"
+          slot-name: 'stage'
+          package: 'python-app.zip'
+        env:
+          RESOURCE_GROUP_NAME: ${{ secrets.RESOURCE_GROUP_NAME }}
+          SERVICE_NAME: ${{ secrets.SERVICE_NAME }}

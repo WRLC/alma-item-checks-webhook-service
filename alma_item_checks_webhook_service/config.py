@@ -1,0 +1,22 @@
+"""Configurations for Alma Item Checks Webhook Service"""
+
+import os
+
+
+def _get_required_env(var_name: str) -> str:
+    """Gets a required environment variable or raises a ValueError."""
+    value = os.getenv(var_name)
+    if value is None:
+        raise ValueError(f"Missing required environment variable: '{var_name}'")
+    return value
+
+
+STORAGE_CONNECTION_SETTING_NAME = "AzureWebJobsStorage"
+STORAGE_CONNECTION_STRING: str = _get_required_env(STORAGE_CONNECTION_SETTING_NAME)
+
+WEBHOOK_SECRET: str = _get_required_env("WEBHOOK_SECRET")
+
+BARCODE_RETRIEVAL_QUEUE: str = os.getenv(
+    "BARCODE_RETRIEVAL_QUEUE", "barcode-retrieval-queue"
+)
+ITEM_VALIDATION_QUEUE: str = os.getenv("ITEM_VALIDATION_QUEUE", "item-validation-queue")
