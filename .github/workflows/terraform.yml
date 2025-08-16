@@ -39,7 +39,7 @@ jobs:
             --start-ip-address ${{ steps.ip.outputs.ipv4 }} \
             --end-ip-address ${{ steps.ip.outputs.ipv4 }}
 
-      - name: 'Debug MySQL Connection'
+      - name: 'Debug MySQL User'
         run: |
           sudo apt-get update
           sudo apt-get install -y mysql-client
