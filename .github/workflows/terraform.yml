@@ -41,16 +41,17 @@ jobs:
 
       - name: 'Terraform Init'
         run: |
+          unset ARM_CLIENT_ID
+          unset ARM_CLIENT_SECRET
+          unset ARM_TENANT_ID
+          unset ARM_SUBSCRIPTION_ID
           terraform -chdir=terraform init \
             -backend-config="resource_group_name=${{ secrets.TF_STATE_RESOURCE_GROUP_NAME }}" \
             -backend-config="storage_account_name=${{ secrets.TF_STATE_STORAGE_ACCOUNT_NAME }}" \
             -backend-config="container_name=${{ secrets.TF_STATE_CONTAINER_NAME }}" \
             -backend-config="key=terraform.tfstate"
         env:
-          ARM_CLIENT_ID: ${{ secrets.AZURE_AD_CLIENT_ID }}
-          ARM_CLIENT_SECRET: ${{ secrets.AZURE_AD_CLIENT_SECRET }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          ARM_TENANT_ID: ${{ secrets.AZURE_AD_TENANT_ID }}
+          ARM_ACCESS_KEY: ${{ secrets.ARM_ACCESS_KEY }}
 
       - name: 'Terraform Validate'
         run: terraform -chdir=terraform validate
