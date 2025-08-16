@@ -53,9 +53,8 @@ jobs:
             exit 1
           fi
 
-          export SQLALCHEMY_DATABASE_URI=$CONNECTION_STRING
           echo "Running Alembic migrations..."
-          poetry run alembic upgrade head
+          SQLALCHEMY_DATABASE_URI=$CONNECTION_STRING poetry run alembic upgrade head
         env:
           RESOURCE_GROUP_NAME: ${{ secrets.RESOURCE_GROUP_NAME }}
           SERVICE_NAME: ${{ secrets.SERVICE_NAME }}
