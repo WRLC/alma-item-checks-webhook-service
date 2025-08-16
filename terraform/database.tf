@@ -18,7 +18,7 @@ resource "random_password" "mysql_user_password" {
 }
 
 resource "mysql_user" "user" {
-  user               = "${var.project_name}_${var.service_name}_user"
+  user               = "${var.service_name}-user"
   host               = "%"
   plaintext_password = random_password.mysql_user_password.result
 }
@@ -51,7 +51,7 @@ resource "random_password" "stage_mysql_user_password" {
 }
 
 resource "mysql_user" "stage_user" {
-  user               = "${var.project_name}_${var.service_name}_user_stage"
+  user               = "${var.service_name}-user-stage"
   host               = "%"
   plaintext_password = random_password.stage_mysql_user_password.result
 }
