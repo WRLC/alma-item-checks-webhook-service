@@ -42,7 +42,7 @@ jobs:
         id: get-conn-string
         run: |
           FUNCTION_APP_NAME="almaitemchecks-${{ secrets.SERVICE_NAME }}"
-          echo "Attempting to retrieve SQLALCHEMY_CONNECTION_STRING for ${FUNCTION_APP_NAME}...
+          echo "Attempting to retrieve SQLALCHEMY_CONNECTION_STRING for ${FUNCTION_APP_NAME}..."
           CONNECTION_STRING=$(az functionapp config appsettings list --name ${FUNCTION_APP_NAME} --resource-group ${{ secrets.RESOURCE_GROUP_NAME }} --slot stage --query "[?name=='SQLALCHEMY_CONNECTION_STRING'].value" -o tsv)
 
           if [ -z "$CONNECTION_STRING" ]; then
@@ -63,16 +63,14 @@ jobs:
         env:
           SQLALCHEMY_CONNECTION_STRING: ${{ steps.get-conn-string.outputs.connection_string }}
 
+      - name: 'Zip artifact for deployment'
+        run: zip -r python-app.zip . -i .python_packages/\* function_app.py host.json alembic/\* alma_item_checks_webhook_service/\*
+
       - name: 'Upload artifact'
         uses: actions/upload-artifact@v4
         with:
           name: python-app
-          path: |
-            .python_packages
-            function_app.py
-            host.json
-            alembic/
-            alma_item_checks_webhook_service/
+          path: python-app.zip
 
   deploy:
     runs-on: ubuntu-latest
@@ -80,14 +78,21 @@ jobs:
     needs: build
     steps:
       - name: 'Download artifact'
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v4
         with:
           name: python-app
-          path: .
+
+      - name: 'Login to Azure'
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: 'Deploy to Azure Functions'
         uses: Azure/functions-action@v1
         with:
           app-name: "almaitemchecks-${{ secrets.SERVICE_NAME }}"
           slot-name: 'stage'
-          package: '.'
+          package: 'python-app.zip'
+        env:
+          RESOURCE_GROUP_NAME: ${{ secrets.RESOURCE_GROUP_NAME }}
+          SERVICE_NAME: ${{ secrets.SERVICE_NAME }}
