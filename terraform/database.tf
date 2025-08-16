@@ -14,7 +14,7 @@ resource "azurerm_mysql_flexible_database" "database" {
 
 resource "random_password" "mysql_user_password" {
   length  = 16
-  special = true
+  special = false
 }
 
 resource "mysql_user" "user" {
@@ -47,7 +47,7 @@ resource "azurerm_mysql_flexible_database" "stage_database" {
 
 resource "random_password" "stage_mysql_user_password" {
   length  = 16
-  special = true
+  special = false
 }
 
 resource "mysql_user" "stage_user" {
