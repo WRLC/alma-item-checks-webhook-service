@@ -58,7 +58,7 @@ jobs:
           ARM_ACCESS_KEY: ${{ secrets.ARM_ACCESS_KEY }}
 
       - name: 'Terraform Plan'
-        timeout-minutes: 8
+        timeout-minutes: 12
         run: terraform -chdir=terraform plan
         env:
           TF_VAR_service_name: ${{ secrets.SERVICE_NAME }}
