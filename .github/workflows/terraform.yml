@@ -26,17 +26,24 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      - name: 'Get Runner IP'
+        id: ip
+        uses: haythem/public-ip@v1.3
+
       - name: 'Add Firewall Rule'
-        id: firewall
         run: |
-          IP_ADDRESS=$(curl -s ifconfig.me)
-          echo "ip=$IP_ADDRESS" >> $GITHUB_OUTPUT
           az mysql flexible-server firewall-rule create \
             --resource-group ${{ secrets.MYSQL_RESOURCE_GROUP_NAME }} \
             --name ${{ secrets.MYSQL_SERVER_NAME }} \
             --rule-name "github-actions-runner" \
-            --start-ip-address $IP_ADDRESS \
-            --end-ip-address $IP_ADDRESS
+            --start-ip-address ${{ steps.ip.outputs.ipv4 }} \
+            --end-ip-address ${{ steps.ip.outputs.ipv4 }}
+
+      - name: 'Debug MySQL Connection'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mysql-client
+          mysql -h ${{ secrets.MYSQL_SERVER_NAME }}.mysql.database.azure.com -u ${{ secrets.MYSQL_ADMIN_USERNAME }} -p"${{ secrets.MYSQL_ADMIN_PASSWORD }}" -e "SELECT 1;"
 
       - name: 'Terraform Init'
         run: terraform -chdir=terraform init
