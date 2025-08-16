@@ -28,6 +28,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install poetry
 
+      - name: 'Configure Poetry for Private Repository'
+        run: poetry config http-basic.wrlc-python __token__ ${{ secrets.AZURE_DEVOPS_PAT }}
+
       - name: 'Install dependencies'
         run: poetry install --without dev
 
