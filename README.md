@@ -1,9 +1,9 @@
 # Alma Item Checks Webhook Service
- 
-Webhook service for WRLC's Alma Item Checks application. 
- 
-It processes item updates from the Ex Libris Alma library management system, using a queue-based architecture to asynchronously validate the webhook request, re-retrieve full item data by barcode (to verify active lifecycle status), and store the results for further processing by the Alma Item Checks Processing Service.
- 
+
+Webhook service for WRLC's Alma Item Checks application.
+
+It processes item updates from the Ex Libris Alma library management system, using a queue-based architecture to validate the webhook request, re-retrieve full item data by barcode (to verify active lifecycle status), and store the results for further processing by the Alma Item Checks Processing Service.
+
  ## Prerequisites
 
 *   Python 3.12+
