@@ -5,7 +5,7 @@ resource "random_string" "storage_account_suffix" {
 }
 
 resource "azurerm_storage_account" "storage_account" {
-  name                     = "${var.project_name}${random_string.storage_account_suffix.result}"
+  name                     = "${var.service_name}${random_string.storage_account_suffix.result}"
   resource_group_name      = var.resource_group_name
   location                 = var.location
   account_tier             = "Standard"
@@ -13,9 +13,9 @@ resource "azurerm_storage_account" "storage_account" {
 }
 
 locals {
-  barcode_retrieval_queue_name = "barcode-retrieval-queue"
-  item_validation_queue_name   = "item-validation-queue"
-  item_validation_container_name = "item-validation-container"
+  barcode_retrieval_queue_name = "${var.service_name}-barcode-retrieval-queue"
+  item_validation_queue_name   = "${var.service_name}-item-validation-queue"
+  item_validation_container_name = "${var.service_name}-item-validation-container"
 }
 
 resource "azurerm_storage_queue" "barcode_retrieval_queue" {
