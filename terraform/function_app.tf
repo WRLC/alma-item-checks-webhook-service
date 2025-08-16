@@ -18,6 +18,7 @@ resource "azurerm_linux_function_app" "function_app" {
   }
 
   app_settings = {
+    "WEBSITE_RUN_FROM_PACKAGE"     = "1"
     "SQLALCHEMY_CONNECTION_STRING" = "mysql+pymysql://${mysql_user.user.user}:${random_password.mysql_user_password.result}@${var.mysql_server_name}.mysql.database.azure.com/${azurerm_mysql_flexible_database.database.name}"
     "WEBHOOK_SECRET"               = var.webhook_secret
     "BARCODE_RETRIEVAL_QUEUE_NAME" = local.barcode_retrieval_queue_name
@@ -49,6 +50,7 @@ resource "azurerm_linux_function_app_slot" "staging_slot" {
   }
 
   app_settings = {
+    "WEBSITE_RUN_FROM_PACKAGE"     = "1"
     "SQLALCHEMY_CONNECTION_STRING" = "mysql+pymysql://${mysql_user.stage_user.user}:${random_password.stage_mysql_user_password.result}@${var.mysql_server_name}.mysql.database.azure.com/${azurerm_mysql_flexible_database.stage_database.name}"
     "WEBHOOK_SECRET"               = var.webhook_secret
     "BARCODE_RETRIEVAL_QUEUE_NAME" = "${local.barcode_retrieval_queue_name}-stage"

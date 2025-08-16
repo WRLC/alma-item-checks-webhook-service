@@ -1,4 +1,4 @@
-name: 'Deploy Azure Function'
+name: 'Build and Deploy Azure Function'
 
 on:
   push:
@@ -12,26 +12,25 @@ on:
       - '.github/workflows/deploy.yml'
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
+    name: Build
     steps:
       - name: 'Checkout'
         uses: actions/checkout@v3
 
-      - name: 'Set up Python'
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.12'
-
       - name: 'Install Poetry'
-        run: |
-          python -m pip install --upgrade pip
-          pip install poetry
+        uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+          virtualenvs-path: .python_packages
+          installer-parallel: true
 
       - name: 'Configure Poetry for Private Repository'
         run: poetry config http-basic.wrlc-python __token__ ${{ secrets.AZURE_DEVOPS_PAT }}
 
-      - name: 'Install dependencies'
+      - name: 'Build with Poetry'
         run: poetry install --without dev
 
       - name: 'Login to Azure'
@@ -43,7 +42,7 @@ jobs:
         id: get-conn-string
         run: |
           FUNCTION_APP_NAME="almaitemchecks-${{ secrets.SERVICE_NAME }}"
-          echo "Attempting to retrieve SQLALCHEMY_CONNECTION_STRING for ${FUNCTION_APP_NAME}..."
+          echo "Attempting to retrieve SQLALCHEMY_CONNECTION_STRING for ${FUNCTION_APP_NAME}...
           CONNECTION_STRING=$(az functionapp config appsettings list --name ${FUNCTION_APP_NAME} --resource-group ${{ secrets.RESOURCE_GROUP_NAME }} --slot stage --query "[?name=='SQLALCHEMY_CONNECTION_STRING'].value" -o tsv)
 
           if [ -z "$CONNECTION_STRING" ]; then
@@ -63,6 +62,28 @@ jobs:
           poetry run alembic upgrade head
         env:
           SQLALCHEMY_CONNECTION_STRING: ${{ steps.get-conn-string.outputs.connection_string }}
+
+      - name: 'Upload artifact'
+        uses: actions/upload-artifact@v3
+        with:
+          name: python-app
+          path: |
+            .python_packages
+            function_app.py
+            host.json
+            alembic/
+            alma_item_checks_webhook_service/
+
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy to Stage
+    needs: build
+    steps:
+      - name: 'Download artifact'
+        uses: actions/download-artifact@v3
+        with:
+          name: python-app
+          path: .
 
       - name: 'Deploy to Azure Functions'
         uses: Azure/functions-action@v1
