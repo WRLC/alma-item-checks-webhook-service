@@ -41,8 +41,19 @@ jobs:
 
       - name: 'Run database migrations'
         run: |
+          echo "Listing all app settings for the staging slot..."
+          az functionapp config appsettings list --name ${{ secrets.FUNCTION_APP_NAME }} --resource-group ${{ secrets.RESOURCE_GROUP_NAME }} --slot stage -o table
+
+          echo "Attempting to retrieve SQLALCHEMY_CONNECTION_STRING..."
           CONNECTION_STRING=$(az functionapp config appsettings list --name ${{ secrets.FUNCTION_APP_NAME }} --resource-group ${{ secrets.RESOURCE_GROUP_NAME }} --slot stage --query "[?name=='SQLALCHEMY_CONNECTION_STRING'].value" -o tsv)
+
+          if [ -z "$CONNECTION_STRING" ]; then
+            echo "::error::Could not find SQLALCHEMY_CONNECTION_STRING in the staging slot's app settings."
+            exit 1
+          fi
+
           export SQLALCHEMY_DATABASE_URI=$CONNECTION_STRING
+          echo "Running Alembic migrations..."
           poetry run alembic upgrade head
         env:
           RESOURCE_GROUP_NAME: ${{ secrets.RESOURCE_GROUP_NAME }}
