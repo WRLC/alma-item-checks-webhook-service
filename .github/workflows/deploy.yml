@@ -41,11 +41,12 @@ jobs:
 
       - name: 'Run database migrations'
         run: |
-          echo "Listing all app settings for the staging slot..."
-          az functionapp config appsettings list --name ${{ secrets.FUNCTION_APP_NAME }} --resource-group ${{ secrets.RESOURCE_GROUP_NAME }} --slot stage -o table
+          FUNCTION_APP_NAME="almaitemchecks-${{ secrets.SERVICE_NAME }}"
+          echo "Listing all app settings for the staging slot of ${FUNCTION_APP_NAME}..."
+          az functionapp config appsettings list --name ${FUNCTION_APP_NAME} --resource-group ${{ secrets.RESOURCE_GROUP_NAME }} --slot stage -o table
 
           echo "Attempting to retrieve SQLALCHEMY_CONNECTION_STRING..."
-          CONNECTION_STRING=$(az functionapp config appsettings list --name ${{ secrets.FUNCTION_APP_NAME }} --resource-group ${{ secrets.RESOURCE_GROUP_NAME }} --slot stage --query "[?name=='SQLALCHEMY_CONNECTION_STRING'].value" -o tsv)
+          CONNECTION_STRING=$(az functionapp config appsettings list --name ${FUNCTION_APP_NAME} --resource-group ${{ secrets.RESOURCE_GROUP_NAME }} --slot stage --query "[?name=='SQLALCHEMY_CONNECTION_STRING'].value" -o tsv)
 
           if [ -z "$CONNECTION_STRING" ]; then
             echo "::error::Could not find SQLALCHEMY_CONNECTION_STRING in the staging slot's app settings."
@@ -57,10 +58,11 @@ jobs:
           poetry run alembic upgrade head
         env:
           RESOURCE_GROUP_NAME: ${{ secrets.RESOURCE_GROUP_NAME }}
+          SERVICE_NAME: ${{ secrets.SERVICE_NAME }}
 
       - name: 'Deploy to Azure Functions'
         uses: Azure/functions-action@v1
         with:
-          app-name: ${{ secrets.FUNCTION_APP_NAME }}
+          app-name: "almaitemchecks-${{ secrets.SERVICE_NAME }}"
           slot-name: 'stage'
           package: '.'
