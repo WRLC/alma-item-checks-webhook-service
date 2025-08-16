@@ -64,7 +64,7 @@ jobs:
           SQLALCHEMY_CONNECTION_STRING: ${{ steps.get-conn-string.outputs.connection_string }}
 
       - name: 'Upload artifact'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: python-app
           path: |
@@ -80,7 +80,7 @@ jobs:
     needs: build
     steps:
       - name: 'Download artifact'
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v5
         with:
           name: python-app
           path: .
