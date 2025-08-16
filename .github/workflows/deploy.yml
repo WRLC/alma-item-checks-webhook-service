@@ -9,6 +9,7 @@ on:
       - 'pyproject.toml'
       - 'alembic/**'
       - 'function_app.py'
+      - '.github/workflows/deploy.yml'
 
 jobs:
   build-and-deploy:
