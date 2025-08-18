@@ -55,6 +55,7 @@ resource "azurerm_linux_function_app" "function_app" {
   storage_account_access_key = azurerm_storage_account.storage_account.primary_access_key
 
   site_config {
+    always_on = true
     application_stack {
       python_version = "3.12"
     }
@@ -80,6 +81,7 @@ resource "azurerm_linux_function_app_slot" "staging_slot" {
   storage_account_access_key = azurerm_storage_account.storage_account.primary_access_key
 
   site_config {
+    always_on = true
     application_stack {
       python_version = "3.12"
     }
