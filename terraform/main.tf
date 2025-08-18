@@ -17,18 +17,17 @@ resource "azurerm_storage_account" "storage_account" {
 
 locals {
   fetch_queue_name = "fetch-queue"
+  queues_to_create = toset([
+    local.fetch_queue_name,
+    "${local.fetch_queue_name}-stage"
+  ])
 }
 
-resource "azurerm_storage_queue" "fetch_queue" {
-  name                 = local.fetch_queue_name
+resource "azurerm_storage_queue" "fetch_queues" {
+  for_each             = local.queues_to_create
+  name                 = each.key
   storage_account_name = azurerm_storage_account.storage_account.name
 }
-
-resource "azurerm_storage_queue" "stage_fetch_queue" {
-  name                 = "${local.fetch_queue_name}-stage"
-  storage_account_name = azurerm_storage_account.storage_account.name
-}
-
 resource "azurerm_application_insights" "main" {
   name                = var.project_name
   resource_group_name = data.azurerm_resource_group.existing.name

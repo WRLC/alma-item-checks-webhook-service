@@ -16,7 +16,4 @@ STORAGE_CONNECTION_STRING: str = _get_required_env(STORAGE_CONNECTION_SETTING_NA
 
 WEBHOOK_SECRET: str = _get_required_env("WEBHOOK_SECRET")
 
-BARCODE_RETRIEVAL_QUEUE: str = os.getenv(
-    "BARCODE_RETRIEVAL_QUEUE", "barcode-retrieval-queue"
-)
-ITEM_VALIDATION_QUEUE: str = os.getenv("ITEM_VALIDATION_QUEUE", "item-validation-queue")
+FETCH_QUEUE_NAME: str = os.getenv("FETCH_QUEUE_NAME", "fetch-queue")

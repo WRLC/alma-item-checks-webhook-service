@@ -65,11 +65,8 @@ jobs:
         timeout-minutes: 12
         run: terraform -chdir=terraform plan
         env:
-          TF_VAR_service_name: ${{ secrets.SERVICE_NAME }}
           TF_VAR_resource_group_name: ${{ secrets.RESOURCE_GROUP_NAME }}
           TF_VAR_app_service_plan_name: ${{ secrets.APP_SERVICE_PLAN_NAME }}
-          TF_VAR_location: ${{ secrets.LOCATION }}
-          TF_VAR_function_app_name: ${{ secrets.FUNCTION_APP_NAME }}
           TF_VAR_webhook_secret: ${{ secrets.WEBHOOK_SECRET }}
           ARM_CLIENT_ID: ${{ secrets.AZURE_AD_CLIENT_ID }}
           ARM_CLIENT_SECRET: ${{ secrets.AZURE_AD_CLIENT_SECRET }}
@@ -82,11 +79,8 @@ jobs:
         timeout-minutes: 10
         run: terraform -chdir=terraform apply -auto-approve
         env:
-          TF_VAR_service_name: ${{ secrets.SERVICE_NAME }}
           TF_VAR_resource_group_name: ${{ secrets.RESOURCE_GROUP_NAME }}
           TF_VAR_app_service_plan_name: ${{ secrets.APP_SERVICE_PLAN_NAME }}
-          TF_VAR_location: ${{ secrets.LOCATION }}
-          TF_VAR_function_app_name: ${{ secrets.FUNCTION_APP_NAME }}
           TF_VAR_webhook_secret: ${{ secrets.WEBHOOK_SECRET }}
           ARM_CLIENT_ID: ${{ secrets.AZURE_AD_CLIENT_ID }}
           ARM_CLIENT_SECRET: ${{ secrets.AZURE_AD_CLIENT_SECRET }}
@@ -135,6 +129,8 @@ jobs:
     runs-on: ubuntu-latest
     name: Deploy to Stage
     needs: [build, terraform]
+    env:
+      FUNCTION_APP_NAME: "aic-webhook-service"
     steps:
       - name: 'Download artifact'
         uses: actions/download-artifact@v4
@@ -149,9 +145,8 @@ jobs:
       - name: 'Deploy to Azure Functions'
         uses: Azure/functions-action@v1
         with:
-          app-name: "almaitemchecks-${{ secrets.SERVICE_NAME }}"
+          app-name: "${{ env.FUNCTION_APP_NAME }}"
           slot-name: 'stage'
           package: 'python-app.zip'
         env:
           RESOURCE_GROUP_NAME: ${{ secrets.RESOURCE_GROUP_NAME }}
-          SERVICE_NAME: ${{ secrets.SERVICE_NAME }}

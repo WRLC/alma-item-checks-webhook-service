@@ -32,8 +32,7 @@ def test_get_required_env_variable_missing(mocker):
 @pytest.mark.parametrize(
     "env_var, set_value, expected_value, default_value",
     [
-        ("BARCODE_RETRIEVAL_QUEUE", "custom-queue", "custom-queue", "barcode-retrieval-queue"),
-        ("ITEM_VALIDATION_QUEUE", "validation-queue", "validation-queue", "item-validation-queue"),
+        ("FETCH_QUEUE_NAME", "custom-queue", "custom-queue", "fetch-queue"),
     ]
 )
 def test_optional_env_variables(mocker, base_env, env_var, set_value, expected_value, default_value):
