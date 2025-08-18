@@ -28,11 +28,21 @@ resource "azurerm_storage_queue" "fetch_queues" {
   name                 = each.key
   storage_account_name = azurerm_storage_account.storage_account.name
 }
+
+resource "azurerm_log_analytics_workspace" "main" {
+  name                = "${var.project_name}-la"
+  location            = data.azurerm_resource_group.existing.location
+  resource_group_name = data.azurerm_resource_group.existing.name
+  sku                 = "PerGB2018"
+  retention_in_days   = 30
+}
+
 resource "azurerm_application_insights" "main" {
   name                = var.project_name
   resource_group_name = data.azurerm_resource_group.existing.name
   location            = data.azurerm_resource_group.existing.location
   application_type    = "web"
+  workspace_id        = azurerm_log_analytics_workspace.main.id
 }
 
 
