@@ -8,7 +8,6 @@ on:
       - 'terraform/**'
       - 'alma_item_checks_webhook_service/**'
       - 'pyproject.toml'
-      - 'alembic/**'
       - 'function_app.py'
       - '.github/workflows/terraform.yml'
 
@@ -16,20 +15,24 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  id-token: write # Required for OIDC authentication
+  contents: read  # Required to check out the repository
+
 jobs:
   terraform:
     name: 'Terraform'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    env:
-      TF_VAR_resource_group_name: ${{ secrets.RESOURCE_GROUP_NAME }}
+    env: # Terraform input variables are passed to all steps
+      TF_VAR_service_name: ${{ secrets.SERVICE_NAME }}
+      TF_VAR_shared_project_resource_group_name: ${{ secrets.SHARED_PROJECT_RESOURCE_GROUP_NAME }}
+      TF_VAR_shared_storage_account_name: ${{ secrets.SHARED_STORAGE_ACCOUNT_NAME }}
+      TF_VAR_fetch_queue_name: ${{ secrets.FETCH_QUEUE_NAME }}
+      TF_VAR_asp_resource_group_name: ${{ secrets.ASP_RESOURCE_GROUP_NAME }}
       TF_VAR_app_service_plan_name: ${{ secrets.APP_SERVICE_PLAN_NAME }}
+      TF_VAR_log_analytics_workspace_name: ${{ secrets.LOG_ANALYTICS_WORKSPACE_NAME }}
+      TF_VAR_law_resource_group_name: ${{ secrets.LAW_RESOURCE_GROUP_NAME }}
       TF_VAR_webhook_secret: ${{ secrets.WEBHOOK_SECRET }}
-      ARM_CLIENT_ID: ${{ secrets.AZURE_AD_CLIENT_ID }}
-      ARM_CLIENT_SECRET: ${{ secrets.AZURE_AD_CLIENT_SECRET }}
-      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      ARM_TENANT_ID: ${{ secrets.AZURE_AD_TENANT_ID }}
-      ARM_ACCESS_KEY: ${{ secrets.ARM_ACCESS_KEY }}
 
     steps:
       - name: 'Checkout'
@@ -43,40 +46,53 @@ jobs:
       - name: 'Login to Azure'
         uses: azure/login@v1
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: 'Get Runner IP'
-        id: ip
-        uses: haythem/public-ip@v1.3
+          client-id: ${{ secrets.AZURE_AD_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_AD_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: 'Terraform Init'
         run: |
-          # Unset SP credentials to force backend auth via Access Key
-          unset ARM_CLIENT_ID
-          unset ARM_CLIENT_SECRET
-          unset ARM_TENANT_ID
-          unset ARM_SUBSCRIPTION_ID
           terraform -chdir=terraform init \
             -backend-config="resource_group_name=${{ secrets.TF_STATE_RESOURCE_GROUP_NAME }}" \
             -backend-config="storage_account_name=${{ secrets.TF_STATE_STORAGE_ACCOUNT_NAME }}" \
-            -backend-config="container_name=${{ secrets.TF_STATE_CONTAINER_NAME }}" \
-            -backend-config="key=aicwebhookserviceterraform.tfstate"
+            -backend-config="container_name=${{ secrets.TF_STATE_CONTAINER_NAME }}"
+            -backend-config="key=${{ secrets.TF_STATE_KEY }}"
 
       - name: 'Terraform Validate'
         run: terraform -chdir=terraform validate
 
-      - name: 'Terraform Plan'
-        timeout-minutes: 12
-        run: terraform -chdir=terraform plan
-
-      - name: 'Terraform Apply'
+      - name: 'Terraform Apply - Step 1: Create App Identity'
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        timeout-minutes: 10
-        run: terraform -chdir=terraform apply -auto-approve
+        run: |
+          terraform -chdir=terraform apply -auto-approve \
+            -target=azurerm_linux_function_app.function_app
+
+      - name: "Wait for Azure to Propagate App Identity"
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: sleep 60
+
+      - name: 'Terraform Apply - Step 2: Create Slot Identity'
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          terraform -chdir=terraform apply -auto-approve \
+            -target=azurerm_linux_function_app_slot.staging_slot
+
+      - name: "Wait for Azure to Propagate Slot Identity"
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: sleep 60
+
+      - name: 'Terraform Plan - Step 3: Plan Remaining Changes'
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: terraform -chdir=terraform plan -out=tfplan
+
+      - name: 'Terraform Apply - Step 4: Apply Remaining Changes'
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: terraform -chdir=terraform apply -auto-approve tfplan
 
   build:
     runs-on: ubuntu-latest
     name: Build
+    needs: [terraform]
     steps:
       - name: 'Checkout'
         uses: actions/checkout@v3
@@ -87,9 +103,6 @@ jobs:
       - name: 'Configure Poetry to build locally'
         run: poetry config virtualenvs.in-project true
 
-      - name: 'Configure Poetry for Private Repository'
-        run: poetry config http-basic.wrlc-python __token__ ${{ secrets.AZURE_DEVOPS_PAT }}
-
       - name: 'Build with Poetry'
         run: poetry install --without dev
 
@@ -98,7 +111,7 @@ jobs:
           mkdir -p deployment_package/.python_packages/lib/site-packages
           cp -r ./.venv/lib/python3.12/site-packages/* deployment_package/.python_packages/lib/site-packages/
           cp function_app.py host.json deployment_package/
-          cp -r alembic alma_item_checks_webhook_service deployment_package/
+          cp -r alma_item_checks_webhook_service deployment_package/
 
       - name: 'Zip artifact for deployment'
         run: |
@@ -114,9 +127,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     name: Deploy to Stage
-    needs: [build, terraform]
-    env:
-      FUNCTION_APP_NAME: "aic-webhook-service"
+    needs: [build]
     steps:
       - name: 'Download artifact'
         uses: actions/download-artifact@v4
@@ -126,13 +137,13 @@ jobs:
       - name: 'Login to Azure'
         uses: azure/login@v1
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          client-id: ${{ secrets.AZURE_AD_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_AD_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: 'Deploy to Azure Functions'
         uses: Azure/functions-action@v1
         with:
-          app-name: "${{ env.FUNCTION_APP_NAME }}"
+          app-name: "${{ secrets.SERVICE_NAME }}"
           slot-name: 'stage'
           package: 'python-app.zip'
-        env:
-          RESOURCE_GROUP_NAME: ${{ secrets.RESOURCE_GROUP_NAME }}
