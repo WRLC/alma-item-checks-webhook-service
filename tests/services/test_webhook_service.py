@@ -35,18 +35,13 @@ def mock_request_factory():
 @pytest.fixture
 def mock_dependencies(mocker):
     """Mock all external dependencies for the WebhookService."""
-    # Create a mock for the StorageService class
-    mock_storage_service_class = mocker.MagicMock()
-
-    # Create a mock for the wrlc_azure_storage_service module
-    mock_module = mocker.MagicMock()
-    mock_module.StorageService = mock_storage_service_class
-
-    # Patch sys.modules to replace the real module with our mock
-    mocker.patch.dict("sys.modules", {"wrlc_azure_storage_service": mock_module})
+    mock_storage_service = mocker.patch(
+        "alma_item_checks_webhook_service.services.webhook_service.StorageService",
+        autospec=True,
+    )
 
     mocks = {
-        "StorageService": mock_storage_service_class,
+        "StorageService": mock_storage_service,
         "validate_webhook_signature": mocker.patch(
             "alma_item_checks_webhook_service.services.webhook_service.validate_webhook_signature"
         ),
