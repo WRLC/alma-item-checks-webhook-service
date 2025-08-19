@@ -37,7 +37,11 @@ resource "azurerm_linux_function_app" "function_app" {
   location                   = data.azurerm_resource_group.project_rg_shared.location
   service_plan_id            = data.azurerm_service_plan.existing.id
   storage_account_name       = data.azurerm_storage_account.existing.name
-  storage_account_access_key = data.azurerm_storage_account.existing.primary_access_key
+  storage_uses_managed_identity = true
+
+  identity {
+    type = "SystemAssigned"
+  }
 
   site_config {
     always_on = true
@@ -49,7 +53,8 @@ resource "azurerm_linux_function_app" "function_app" {
   app_settings = {
     "WEBSITE_RUN_FROM_PACKAGE"     = "1"
     "WEBHOOK_SECRET"               = var.webhook_secret
-    "FETCH_QUEUE_NAME" = data.azurerm_storage_queue.fetch_queue.name
+    "FETCH_QUEUE_NAME"             = data.azurerm_storage_queue.fetch_queue.name
+    "STORAGE_ACCOUNT_URL"          = data.azurerm_storage_account.existing.primary_queue_endpoint
   }
 
   sticky_settings {
@@ -59,11 +64,28 @@ resource "azurerm_linux_function_app" "function_app" {
   }
 }
 
+resource "azurerm_role_assignment" "function_app_storage_roles" {
+  for_each = toset([
+    # Required for the function runtime to read the package zip
+    "Storage Blob Data Reader",
+    # Required for your application code to write to the queue
+    "Storage Queue Data Contributor"
+  ])
+
+  scope                = data.azurerm_storage_account.existing.id
+  role_definition_name = each.key
+  principal_id         = azurerm_linux_function_app.function_app.identity[0].principal_id
+}
+
 resource "azurerm_linux_function_app_slot" "staging_slot" {
   name                       = "stage"
   function_app_id            = azurerm_linux_function_app.function_app.id
   storage_account_name       = data.azurerm_storage_account.existing.name
-  storage_account_access_key = data.azurerm_storage_account.existing.primary_access_key
+  storage_uses_managed_identity = true
+
+  identity {
+    type = "SystemAssigned"
+  }
 
   site_config {
     always_on = true
@@ -75,6 +97,20 @@ resource "azurerm_linux_function_app_slot" "staging_slot" {
   app_settings = {
     "WEBSITE_RUN_FROM_PACKAGE"     = "1"
     "WEBHOOK_SECRET"               = var.webhook_secret
-    "FETCH_QUEUE_NAME" = "${data.azurerm_storage_queue.fetch_queue.name}-stage"
+    "FETCH_QUEUE_NAME"             = "${data.azurerm_storage_queue.fetch_queue.name}-stage"
+    "STORAGE_ACCOUNT_URL"          = data.azurerm_storage_account.existing.primary_queue_endpoint
   }
+}
+
+resource "azurerm_role_assignment" "slot_storage_roles" {
+  for_each = toset([
+    # Required for the function runtime to read the package zip
+    "Storage Blob Data Reader",
+    # Required for your application code to write to the queue
+    "Storage Queue Data Contributor"
+  ])
+
+  scope                = data.azurerm_storage_account.existing.id
+  role_definition_name = each.key
+  principal_id         = azurerm_linux_function_app_slot.staging_slot.identity[0].principal_id
 }
