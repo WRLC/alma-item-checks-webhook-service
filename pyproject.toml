@@ -1,7 +1,7 @@
 [project]
 name = "alma-item-checks-webhook-service"
 version = "0.1.0"
-description = "\"Webhook listener for Alma item updates"
+description = "Webhook listener for Alma item updates"
 authors = [
     {name = "Tom Boone",email = "boone@wrlc.org"}
 ]
@@ -10,23 +10,8 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "azure-functions (>=1.23.0,<2.0.0)",
-    "azure-storage-queue (>=12.13.0,<13.0.0)",
-    "azure-storage-blob (>=12.26.0,<13.0.0)",
-    "wrlc-alma-api-client (>=0.1.5,<0.2.0)",
-    "sqlalchemy (>=2.0.43,<3.0.0)",
-    "azure-data-tables (>=12.7.0,<13.0.0)",
-    "pymysql (>=1.1.1,<2.0.0)",
-    "requests (>=2.32.4,<3.0.0)",
-    "types-requests (>=2.32.4.20250809,<3.0.0.0)",
-    "alembic (>=1.13.2,<2.0.0)",
-    "wrlc-azure-storage-service (>=0.1.0,<0.2.0)"
+    "azure-storage-queue (>=12.13.0,<13.0.0)"
 ]
-
-[[tool.poetry.source]]
-name = "wrlc-python"
-url = "https://pkgs.dev.azure.com/WRLCdev/Python/_packaging/wrlc-python/pypi/simple/"
-priority = "primary"
-
 
 [tool.poetry.group.dev.dependencies]
 mypy = "^1.17.1"

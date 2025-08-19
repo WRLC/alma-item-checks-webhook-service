@@ -7,25 +7,19 @@ It processes item updates from the Ex Libris Alma library management system, usi
  ## Prerequisites
 
 *   Python 3.12+
-*   MySQL 8.1+
 *   Azure Functions
-*   [wrlc-alma-api-client](https://github.com/WRLC/wrlc-alma-api-client) (private package)
 
 ## Configuration
 
 ### Environment Variables
 
-The following environment variables are required:
+The following environment variable must be set for the application to run:
 
-*   `SQLALCHEMY_CONNECTION_STRING`: SQL Alchemy connection string for MySQL
 *   `WEBHOOK_SECRET`: shared secret key sent with webhook request by Alma
 
-The following application settings have default values set in `config.py` but can be overwritten with environment variables:
+The following application setting has a default value in `config.py` but can be overwritten with environment variable:
 
-*   `API_CLIENT_TIMEOUT`: [_default_: `90`] timeout in seconds for requests made by wrlc-alma-api-client
-*   `BARCODE_RETRIEVAL_QUEUE`: [_default_: `barcode-retrieval-queue`] name of the Azure Storage queue used to trigger item data retrieval
-*   `ITEM_VALIDATION_QUEUE`: [_default_: `item-validation-queue`] name of the Azure Storage queue used to trigger Alma Item Checks Processing Service (message contains claim check for `ITEM_VALIDATION_CONTAINER` blob)
-*   `ITEM_VALIDATION_CONTAINER`: [_default_: `item-validation-container`] name of the Azure Storage container used to store retrieved item data
+*   `FETCH_QUEUE_NAME`: [_default_: `fetch-queue`] name of the Azure Storage queue used to trigger item data retrieval
 
 ### Alma Integration Profile
 

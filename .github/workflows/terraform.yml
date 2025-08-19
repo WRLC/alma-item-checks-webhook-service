@@ -20,10 +20,14 @@ jobs:
   terraform:
     name: 'Terraform'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
     env:
-      TF_VAR_resource_group_name: ${{ secrets.RESOURCE_GROUP_NAME }}
+      TF_VAR_shared_project_resource_group_name: ${{ secrets.SHARED_PROJECT_RESOURCE_GROUP_NAME }}
+      TF_VAR_shared_storage_account_name: ${{ secrets.SHARED_STORAGE_ACCOUNT_NAME }}
+      TF_VAR_fetch_queue_name: ${{ secrets.FETCH_QUEUE_NAME }}
+      TF_VAR_asp_resource_group_name: ${{ secrets.ASP_RESOURCE_GROUP_NAME }}
       TF_VAR_app_service_plan_name: ${{ secrets.APP_SERVICE_PLAN_NAME }}
+      TF_VAR_log_analytics_workspace_name: ${{ secrets.LOG_ANALYTICS_WORKSPACE_NAME }}
+      TF_VAR_law_resource_group_name: ${{ secrets.LAW_RESOURCE_GROUP_NAME }}
       TF_VAR_webhook_secret: ${{ secrets.WEBHOOK_SECRET }}
       ARM_CLIENT_ID: ${{ secrets.AZURE_AD_CLIENT_ID }}
       ARM_CLIENT_SECRET: ${{ secrets.AZURE_AD_CLIENT_SECRET }}
@@ -65,13 +69,8 @@ jobs:
       - name: 'Terraform Validate'
         run: terraform -chdir=terraform validate
 
-      - name: 'Terraform Plan'
-        timeout-minutes: 12
-        run: terraform -chdir=terraform plan
-
       - name: 'Terraform Apply'
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        timeout-minutes: 10
         run: terraform -chdir=terraform apply -auto-approve
 
   build:
@@ -86,9 +85,6 @@ jobs:
 
       - name: 'Configure Poetry to build locally'
         run: poetry config virtualenvs.in-project true
-
-      - name: 'Configure Poetry for Private Repository'
-        run: poetry config http-basic.wrlc-python __token__ ${{ secrets.AZURE_DEVOPS_PAT }}
 
       - name: 'Build with Poetry'
         run: poetry install --without dev
