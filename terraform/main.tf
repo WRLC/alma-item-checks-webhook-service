@@ -44,13 +44,12 @@ resource "azurerm_linux_function_app" "function_app" {
   }
 
   site_config {
-    always_on = true
-    application_stack {
-      python_version = "3.12"
-    }
+    always_on        = true
+    linux_fx_version = "PYTHON|3.12"
   }
 
   app_settings = {
+    "FUNCTIONS_WORKER_RUNTIME"     = "python"
     "WEBSITE_RUN_FROM_PACKAGE"     = "1"
     "WEBHOOK_SECRET"               = var.webhook_secret
     "FETCH_QUEUE_NAME"             = data.azurerm_storage_queue.fetch_queue.name
@@ -90,13 +89,12 @@ resource "azurerm_linux_function_app_slot" "staging_slot" {
   }
 
   site_config {
-    always_on = true
-    application_stack {
-      python_version = "3.12"
-    }
+    always_on        = true
+    linux_fx_version = "PYTHON|3.12"
   }
 
   app_settings = {
+    "FUNCTIONS_WORKER_RUNTIME"     = "python"
     "WEBSITE_RUN_FROM_PACKAGE"     = "1"
     "WEBHOOK_SECRET"               = var.webhook_secret
     "FETCH_QUEUE_NAME"             = "${data.azurerm_storage_queue.fetch_queue.name}-stage"
