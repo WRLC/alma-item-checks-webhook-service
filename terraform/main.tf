@@ -55,6 +55,8 @@ resource "azurerm_linux_function_app" "function_app" {
     "WEBHOOK_SECRET"               = var.webhook_secret
     "FETCH_QUEUE_NAME"             = data.azurerm_storage_queue.fetch_queue.name
     "STORAGE_ACCOUNT_URL"          = data.azurerm_storage_account.existing.primary_queue_endpoint
+    "APPLICATIONINSIGHTS_CONNECTION_STRING" = azurerm_application_insights.main.connection_string
+    "APPLICATIONINSIGHTS_INSTRUMENTATION_KEY" = azurerm_application_insights.main.instrumentation_key
   }
 
   sticky_settings {
@@ -99,6 +101,8 @@ resource "azurerm_linux_function_app_slot" "staging_slot" {
     "WEBHOOK_SECRET"               = var.webhook_secret
     "FETCH_QUEUE_NAME"             = "${data.azurerm_storage_queue.fetch_queue.name}-stage"
     "STORAGE_ACCOUNT_URL"          = data.azurerm_storage_account.existing.primary_queue_endpoint
+    "APPLICATIONINSIGHTS_CONNECTION_STRING" = azurerm_application_insights.main.connection_string
+    "APPLICATIONINSIGHTS_INSTRUMENTATION_KEY" = azurerm_application_insights.main.instrumentation_key
   }
 }
 
