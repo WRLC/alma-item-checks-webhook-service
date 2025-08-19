@@ -101,6 +101,9 @@ jobs:
       - name: 'Configure Poetry to build locally'
         run: poetry config virtualenvs.in-project true
 
+      - name: 'Configure Poetry for private repo'
+        run: poetry config http-basic.wrlc-python pat ${{ secrets.PAT_DEVOPS_TOKEN }}
+
       - name: 'Build with Poetry'
         run: poetry install --without dev
 
