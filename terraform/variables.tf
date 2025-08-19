@@ -1,7 +1,5 @@
 variable "service_name" {
   type        = string
-  description = "The combined name of the service."
-  default     = "aic-webhook-service"
 }
 
 variable "shared_project_resource_group_name" {
