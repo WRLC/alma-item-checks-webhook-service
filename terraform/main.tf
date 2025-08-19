@@ -46,7 +46,11 @@ resource "azurerm_linux_function_app" "function_app" {
   site_config {
     always_on        = true
     linux_fx_version = "PYTHON|3.12"
+    application_stack {
+      python_version = "3.12"
+    }
   }
+
 
   app_settings = {
     "FUNCTIONS_WORKER_RUNTIME"     = "python"
