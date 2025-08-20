@@ -65,27 +65,9 @@ jobs:
       - name: 'Terraform Validate'
         run: terraform -chdir=terraform validate
 
-      - name: 'Terraform Apply - Step 1: Create App Identity'
+      - name: 'Terraform Apply'
         run: |
-          terraform -chdir=terraform apply -auto-approve \
-            -target=azurerm_linux_function_app.function_app
-
-      - name: "Wait for Azure to Propagate App Identity"
-        run: sleep 60
-
-      - name: 'Terraform Apply - Step 2: Create Slot Identity'
-        run: |
-          terraform -chdir=terraform apply -auto-approve \
-            -target=azurerm_linux_function_app_slot.staging_slot
-
-      - name: "Wait for Azure to Propagate Slot Identity"
-        run: sleep 60
-
-      - name: 'Terraform Plan - Step 3: Plan Remaining Changes'
-        run: terraform -chdir=terraform plan -out=tfplan
-
-      - name: 'Terraform Apply - Step 4: Apply Remaining Changes'
-        run: terraform -chdir=terraform apply -auto-approve tfplan
+          terraform -chdir=terraform apply -auto-approve
 
   build:
     runs-on: ubuntu-latest
