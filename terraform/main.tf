@@ -13,7 +13,7 @@ data "azurerm_service_plan" "existing" {
 }
 
 data "azurerm_storage_queue" "fetch_item_queue" {
-  name                = var.fetch_item_queue_name
+  name                = var.fetch_item_queue
   storage_account_name = data.azurerm_storage_account.existing.name
 }
 
