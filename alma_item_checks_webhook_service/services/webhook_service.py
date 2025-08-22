@@ -9,7 +9,7 @@ import azure.core.exceptions
 import azure.functions as func
 from wrlc_azure_storage_service import StorageService  # type: ignore
 
-from alma_item_checks_webhook_service.config import WEBHOOK_SECRET, FETCH_QUEUE_NAME
+from alma_item_checks_webhook_service.config import WEBHOOK_SECRET, FETCH_ITEM_QUEUE
 from alma_item_checks_webhook_service.utils.security import validate_webhook_signature
 
 
@@ -65,7 +65,7 @@ class WebhookService:
             try:
                 storage_service = StorageService()
                 storage_service.send_queue_message(
-                    queue_name=FETCH_QUEUE_NAME,
+                    queue_name=FETCH_ITEM_QUEUE,
                     message_content=message,
                 )
             except (

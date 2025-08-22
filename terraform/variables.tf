@@ -10,7 +10,7 @@ variable "shared_storage_account_name" {
   type = string
 }
 
-variable "fetch_queue_name" {
+variable "fetch_item_queue_name" {
   type = string
 }
 

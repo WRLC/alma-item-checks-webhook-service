@@ -27,7 +27,7 @@ jobs:
       TF_VAR_service_name: ${{ secrets.SERVICE_NAME }}
       TF_VAR_shared_project_resource_group_name: ${{ secrets.SHARED_PROJECT_RESOURCE_GROUP_NAME }}
       TF_VAR_shared_storage_account_name: ${{ secrets.SHARED_STORAGE_ACCOUNT_NAME }}
-      TF_VAR_fetch_queue_name: ${{ secrets.FETCH_QUEUE_NAME }}
+      TF_VAR_fetch_item_queue: ${{ secrets.FETCH_ITEM_QUEUE }}
       TF_VAR_asp_resource_group_name: ${{ secrets.ASP_RESOURCE_GROUP_NAME }}
       TF_VAR_app_service_plan_name: ${{ secrets.APP_SERVICE_PLAN_NAME }}
       TF_VAR_log_analytics_workspace_name: ${{ secrets.LOG_ANALYTICS_WORKSPACE_NAME }}
