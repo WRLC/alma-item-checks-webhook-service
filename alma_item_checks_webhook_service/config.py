@@ -16,4 +16,4 @@ STORAGE_CONNECTION_STRING: str = _get_required_env(STORAGE_CONNECTION_SETTING_NA
 
 WEBHOOK_SECRET: str = _get_required_env("WEBHOOK_SECRET")
 
-FETCH_QUEUE_NAME: str = os.getenv("FETCH_QUEUE_NAME", "fetch-queue")
+FETCH_ITEM_QUEUE: str = os.getenv("FETCH_ITEM_QUEUE", "fetch-item-queue")

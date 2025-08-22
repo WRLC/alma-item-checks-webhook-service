@@ -12,8 +12,8 @@ data "azurerm_service_plan" "existing" {
   resource_group_name = var.asp_resource_group_name
 }
 
-data "azurerm_storage_queue" "fetch_queue" {
-  name                = var.fetch_queue_name
+data "azurerm_storage_queue" "fetch_item_queue" {
+  name                = var.fetch_item_queue_name
   storage_account_name = data.azurerm_storage_account.existing.name
 }
 
@@ -52,12 +52,12 @@ resource "azurerm_linux_function_app" "function_app" {
   app_settings = {
     "WEBSITE_RUN_FROM_PACKAGE"     = "1"
     "WEBHOOK_SECRET"               = var.webhook_secret
-    "FETCH_QUEUE_NAME"             = data.azurerm_storage_queue.fetch_queue.name
+    "FETCH_ITEM_QUEUE"             = data.azurerm_storage_queue.fetch_item_queue.name
   }
 
   sticky_settings {
     app_setting_names = [
-      "FETCH_QUEUE_NAME"
+      "FETCH_ITEM_QUEUE"
     ]
   }
 }
@@ -80,6 +80,6 @@ resource "azurerm_linux_function_app_slot" "staging_slot" {
   app_settings = {
     "WEBSITE_RUN_FROM_PACKAGE"     = "1"
     "WEBHOOK_SECRET"               = var.webhook_secret
-    "FETCH_QUEUE_NAME"             = "${data.azurerm_storage_queue.fetch_queue.name}-stage"
+    "FETCH_ITEM_QUEUE"             = "${data.azurerm_storage_queue.fetch_item_queue.name}-stage"
   }
 }
