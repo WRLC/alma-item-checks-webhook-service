@@ -1,40 +1,54 @@
-data "azurerm_resource_group" "project_rg_shared" {
-  name = var.shared_project_resource_group_name
+locals {
+  service_name = "aic-webhook-service"
+}
+data "terraform_remote_state" "shared" {
+  backend = "azurerm"
+  config = {
+    resource_group_name: var.tf_shared_resource_group_name
+    storage_account_name: var.tf_shared_storage_account_name
+    container_name: var.tf_shared_container_name
+    key: var.tf_shared_key
+  }
 }
 
+data "azurerm_resource_group" "existing" {
+  name = data.terraform_remote_state.shared.outputs.resource_group_name
+}
+
+
 data "azurerm_storage_account" "existing" {
-  name                = var.shared_storage_account_name
-  resource_group_name = data.azurerm_resource_group.project_rg_shared.name
+  name                     = data.terraform_remote_state.shared.outputs.storage_account_name
+  resource_group_name      = data.terraform_remote_state.shared.outputs.resource_group_name
+}
+
+# Access storage resources from shared state
+locals {
+  storage_queues = data.terraform_remote_state.shared.outputs.storage_queues
 }
 
 data "azurerm_service_plan" "existing" {
-  name                = var.app_service_plan_name
-  resource_group_name = var.asp_resource_group_name
-}
-
-data "azurerm_storage_queue" "fetch_item_queue" {
-  name                = var.fetch_item_queue
-  storage_account_name = data.azurerm_storage_account.existing.name
+  name = data.terraform_remote_state.shared.outputs.app_service_plan_name
+  resource_group_name = data.terraform_remote_state.shared.outputs.app_service_plan_resource_group
 }
 
 data "azurerm_log_analytics_workspace" "existing" {
-  name                = var.log_analytics_workspace_name
-  resource_group_name = var.law_resource_group_name
+  name                = data.terraform_remote_state.shared.outputs.log_analytics_workspace_name
+  resource_group_name = data.terraform_remote_state.shared.outputs.log_analytics_workspace_resource_group_name
 }
 
 resource "azurerm_application_insights" "main" {
-  name                = var.service_name
-  resource_group_name = data.azurerm_resource_group.project_rg_shared.name
-  location            = data.azurerm_resource_group.project_rg_shared.location
-  application_type    = "web"
+  name                = local.service_name
+  resource_group_name = data.azurerm_resource_group.existing.name
+  location            = data.azurerm_resource_group.existing.location
   workspace_id        = data.azurerm_log_analytics_workspace.existing.id
+  application_type    = "web"
 }
 
 
 resource "azurerm_linux_function_app" "function_app" {
-  name                       = var.service_name
-  resource_group_name        = data.azurerm_resource_group.project_rg_shared.name
-  location                   = data.azurerm_resource_group.project_rg_shared.location
+  name                       = local.service_name
+  resource_group_name        = data.azurerm_resource_group.existing.name
+  location                   = data.azurerm_resource_group.existing.location
   service_plan_id            = data.azurerm_service_plan.existing.id
   storage_account_name       = data.azurerm_storage_account.existing.name
   storage_account_access_key = data.azurerm_storage_account.existing.primary_access_key
@@ -52,7 +66,7 @@ resource "azurerm_linux_function_app" "function_app" {
   app_settings = {
     "WEBSITE_RUN_FROM_PACKAGE"     = "1"
     "WEBHOOK_SECRET"               = var.webhook_secret
-    "FETCH_ITEM_QUEUE"             = data.azurerm_storage_queue.fetch_item_queue.name
+    "FETCH_ITEM_QUEUE"             = local.storage_queues["fetch-queue"]
   }
 
   sticky_settings {
@@ -80,6 +94,6 @@ resource "azurerm_linux_function_app_slot" "staging_slot" {
   app_settings = {
     "WEBSITE_RUN_FROM_PACKAGE"     = "1"
     "WEBHOOK_SECRET"               = var.webhook_secret
-    "FETCH_ITEM_QUEUE"             = "${data.azurerm_storage_queue.fetch_item_queue.name}-stage"
+    "FETCH_ITEM_QUEUE"             = local.storage_queues["fetch-queue-stage"]
   }
 }

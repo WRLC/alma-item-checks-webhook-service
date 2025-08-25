@@ -1,32 +1,16 @@
-variable "service_name" {
-  type        = string
-}
-
-variable "shared_project_resource_group_name" {
+variable "tf_shared_resource_group_name" {
   type = string
 }
 
-variable "shared_storage_account_name" {
+variable "tf_shared_storage_account_name" {
   type = string
 }
 
-variable "fetch_item_queue" {
+variable "tf_shared_container_name" {
   type = string
 }
 
-variable "asp_resource_group_name" {
-  type = string
-}
-
-variable "app_service_plan_name" {
-  type = string
-}
-
-variable "log_analytics_workspace_name" {
-  type = string
-}
-
-variable "law_resource_group_name" {
+variable "tf_shared_key" {
   type = string
 }
 
