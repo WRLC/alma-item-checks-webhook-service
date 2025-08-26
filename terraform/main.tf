@@ -27,7 +27,7 @@ locals {
 }
 
 data "azurerm_service_plan" "existing" {
-  name = data.terraform_remote_state.shared.outputs.app_service_plan_name
+  name                = data.terraform_remote_state.shared.outputs.app_service_plan_name
   resource_group_name = data.terraform_remote_state.shared.outputs.app_service_plan_resource_group
 }
 

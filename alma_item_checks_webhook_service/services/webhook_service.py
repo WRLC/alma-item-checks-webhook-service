@@ -59,7 +59,6 @@ class WebhookService:
             message: dict[str, Any] = {
                 "institution": request_data.get("institution"),
                 "barcode": barcode,
-                "process": "item_webhook",
             }
 
             try:
