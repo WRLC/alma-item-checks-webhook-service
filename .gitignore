@@ -70,3 +70,5 @@ override.tf
 override.tf.json
 *_override.tf
 tfplan
+
+.coverage
