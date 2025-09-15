@@ -124,3 +124,61 @@ class TestValidateSignature:
         assert service.validate_signature() is True
         # Ensure the actual validation function was not called
         mock_dependencies["validate_webhook_signature"].assert_not_called()
+
+    def test_parse_webhook_storage_service_error(self, mock_request_factory, mock_dependencies, caplog):
+        """Test that a storage service error returns a 500 error."""
+        req = mock_request_factory()
+        mock_dependencies["validate_webhook_signature"].return_value = True
+        # Make the storage service throw an exception
+        mock_dependencies["mock_storage_service"].send_queue_message.side_effect = ValueError("Storage error")
+
+        service = WebhookService(req)
+        response = service.parse_webhook()
+
+        assert response.status_code == 500
+        assert b"Error sending message to queue" in response.get_body()
+        assert "Failed to send message to queue: Storage error" in caplog.text
+
+    def test_get_request_data_missing_institution(self, mock_request_factory, mock_dependencies, caplog):
+        """Test that missing institution parameter returns a 400 error."""
+        req = mock_request_factory(params={})  # No institution parameter
+        mock_dependencies["validate_webhook_signature"].return_value = True
+
+        service = WebhookService(req)
+        response = service.get_request_data_from_webhook()
+
+        assert response.status_code == 400
+        assert b"Missing institution parameter" in response.get_body()
+        assert "Missing institution parameter" in caplog.text
+
+    def test_get_request_data_invalid_json(self, mock_request_factory, mock_dependencies, caplog):
+        """Test that invalid JSON in request body returns a 400 error."""
+        req = mock_request_factory()
+        mock_dependencies["validate_webhook_signature"].return_value = True
+        # Make get_json throw a ValueError
+        req.get_json = Mock(side_effect=ValueError("Invalid JSON"))
+
+        service = WebhookService(req)
+        response = service.get_request_data_from_webhook()
+
+        assert response.status_code == 400
+        assert b"Invalid JSON in request body" in response.get_body()
+        assert "Invalid JSON in request body" in caplog.text
+
+    def test_get_request_data_institution_value_error(self, mock_dependencies, caplog):
+        """Test that ValueError during institution parameter extraction returns a 400 error."""
+        # Create a completely mocked request that raises ValueError on params.get
+        req = Mock()
+        req.params = Mock()
+        req.params.get.side_effect = ValueError("Parameter parsing error")
+        req.get_body.return_value = b'{"test": "data"}'
+        req.headers = {"X-Exl-Signature": "test_signature"}
+
+        mock_dependencies["validate_webhook_signature"].return_value = True
+
+        service = WebhookService(req)
+        response = service.get_request_data_from_webhook()
+
+        assert response.status_code == 400
+        assert b"Invalid institution parameter" in response.get_body()
+        assert "Invalid institution parameter" in caplog.text

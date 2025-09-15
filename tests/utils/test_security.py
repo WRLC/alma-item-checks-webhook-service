@@ -49,3 +49,16 @@ def test_validate_webhook_signature_missing_secret(sample_data, caplog):
         received_signature=sample_data["valid_signature"],
     )
     assert "Webhook secret is not provided for validation" in caplog.text
+
+
+def test_validate_webhook_signature_exception_handling(sample_data, caplog, mocker):
+    """Test that exceptions during signature validation are handled properly."""
+    # Mock base64.b64encode to raise an exception
+    mocker.patch("alma_item_checks_webhook_service.utils.security.base64.b64encode", side_effect=Exception("Encoding error"))
+
+    assert not validate_webhook_signature(
+        body_bytes=sample_data["body"],
+        secret=sample_data["secret"],
+        received_signature=sample_data["valid_signature"],
+    )
+    assert "Error during signature validation: Encoding error" in caplog.text
