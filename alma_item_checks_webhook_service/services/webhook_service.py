@@ -50,7 +50,10 @@ class WebhookService:
 
         if isinstance(request_data, dict):
             barcode: str = (
-                request_data.get("request", {}).get("item_data", {}).get("barcode")
+                request_data.get("request", {})
+                .get("item", {})
+                .get("item_data", {})
+                .get("barcode")
             )
             if not barcode:
                 logging.error(
@@ -99,31 +102,21 @@ class WebhookService:
                 "Internal Server Error: Invalid webhook signature", status_code=500
             )
         try:
-            institution_code: str | None = self.req.headers.get("X-Institution-Code")
-            if institution_code:
-                institution_code = institution_code.strip()
-            if not institution_code:
-                logging.error(
-                    "WebhookService.get_request_data_from_webhook: Missing X-Institution-Code header"
-                )
-                return func.HttpResponse(
-                    "Missing X-Institution-Code header", status_code=400
-                )
-        except ValueError:
-            logging.error(
-                "WebhookService.get_request_data_from_webhook: Invalid X-Institution-Code header"
-            )
-            return func.HttpResponse(
-                "Invalid X-Institution-Code header", status_code=400
-            )
-
-        try:
             request_body = self.req.get_json()
         except ValueError:
             logging.error(
                 "WebhookService.get_request_data_from_webhook: Invalid JSON in request body."
             )
             return func.HttpResponse("Invalid JSON in request body", status_code=400)
+
+        institution_code: str | None = request_body.get("institution", {}).get("value")
+        if not institution_code:
+            logging.error(
+                "WebhookService.get_request_data_from_webhook: Missing institution.value in request body"
+            )
+            return func.HttpResponse(
+                "Missing institution.value in request body", status_code=400
+            )
 
         return {
             "institution": institution_code,
