@@ -1,0 +1,220 @@
+name: 'Terraform, Build, and Deploy'
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'terraform/**'
+      - 'alma_item_checks_webhook_service/**'
+      - 'pyproject.toml'
+      - 'function_app.py'
+      - '.github/workflows/build-deploy.yml'
+  workflow_dispatch:
+
+permissions:
+  id-token: write # Required for OIDC authentication
+  contents: read  # Required to check out the repository
+
+env:
+  ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+  ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+  ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+  ARM_USE_OIDC: true
+  TF_STATE_RG: ${{ secrets.TF_STATE_RG }}
+  TF_STATE_SA: ${{ secrets.TF_STATE_SA }}
+  TF_STATE_CONTAINER: ${{ secrets.TF_STATE_CONTAINER }}
+  TF_STATE_KEY: ${{ secrets.TF_STATE_KEY }}
+  TF_VAR_tf_shared_resource_group_name: ${{ secrets.TF_SHARED_RESOURCE_GROUP_NAME }}
+  TF_VAR_tf_shared_storage_account_name: ${{ secrets.TF_SHARED_STORAGE_ACCOUNT_NAME }}
+  TF_VAR_tf_shared_container_name: ${{ secrets.TF_SHARED_CONTAINER_NAME }}
+  TF_VAR_tf_shared_key: ${{ secrets.TF_SHARED_KEY }}
+  TF_VAR_webhook_secret: ${{ secrets.WEBHOOK_SECRET }}
+  TF_WORKING_DIR: ./terraform
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      terraform: ${{ steps.filter.outputs.terraform }}
+      function: ${{ steps.filter.outputs.function }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Filter
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            terraform:
+              - 'terraform/**'
+            function:
+              - 'alma_item_checks_webhook_service/**'
+              - 'pyproject.toml'
+              - 'function_app.py'
+              - '.github/workflows/build-deploy.yml'
+
+  terraform:
+    name: Terraform
+    needs: changes
+    if: ${{ needs.changes.outputs.terraform == 'true' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_wrapper: false
+
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          client-id: ${{ env.ARM_CLIENT_ID }}
+          tenant-id: ${{ env.ARM_TENANT_ID }}
+          subscription-id: ${{ env.ARM_SUBSCRIPTION_ID }}
+
+      - name: Terraform Init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          terraform init \
+            -backend-config="resource_group_name=${{ env.TF_STATE_RG }}" \
+            -backend-config="storage_account_name=${{ env.TF_STATE_SA }}" \
+            -backend-config="container_name=${{ env.TF_STATE_CONTAINER }}" \
+            -backend-config="key=${{ env.TF_STATE_KEY }}" \
+
+      - name: Terraform Apply
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          terraform apply -auto-approve
+
+  get-terraform-outputs:
+    name: Get Terraform Outputs
+    needs: [ changes, terraform ]
+    if: always() && needs.changes.outputs.function == 'true'
+    runs-on: ubuntu-latest
+
+    outputs:
+      function_app_name: ${{ steps.get_outputs.outputs.function_app_name }}
+      python_version: ${{ steps.get_outputs.outputs.python_version }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_wrapper: false
+
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          client-id: ${{ env.ARM_CLIENT_ID }}
+          tenant-id: ${{ env.ARM_TENANT_ID }}
+          subscription-id: ${{ env.ARM_SUBSCRIPTION_ID }}
+
+      - name: Terraform Init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          terraform init \
+            -backend-config="resource_group_name=${{ env.TF_STATE_RG }}" \
+            -backend-config="storage_account_name=${{ env.TF_STATE_SA }}" \
+            -backend-config="container_name=${{ env.TF_STATE_CONTAINER }}" \
+            -backend-config="key=${{ env.TF_STATE_KEY }}" \
+
+      - name: Get Terraform Outputs
+        id: get_outputs
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          APP_NAME=$(terraform output -raw function_app_name)
+          PYTHON_VERSION=$(terraform output -raw python_version)
+          echo "function_app_name=$APP_NAME" >> "$GITHUB_OUTPUT"
+          echo "python_version=$PYTHON_VERSION" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build
+    needs: [changes, get-terraform-outputs]
+    if: ${{ needs.changes.outputs.function == 'true' }}
+    runs-on: ubuntu-latest
+
+    env:
+      PYTHON_VERSION: ${{ needs.get-terraform-outputs.outputs.python_version }}
+      PAT_DEVOPS_TOKEN: ${{ secrets.PAT_DEVOPS_TOKEN }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+
+      - name: Configure Poetry to build locally
+        run: poetry config virtualenvs.in-project true
+
+      - name: Configure Poetry for private repo
+        run: poetry config http-basic.wrlc-python pat ${{ env.PAT_DEVOPS_TOKEN }}
+
+      - name: Build with Poetry
+        run: poetry install --without dev
+
+      - name: Construct deployment artifact
+        run: |
+          VENV_PATH=$(poetry env info --path)
+          mkdir -p deployment_package/.python_packages/lib/site-packages
+          cp -r $VENV_PATH/lib/python${{ env.PYTHON_VERSION }}/site-packages/* deployment_package/.python_packages/lib/site-packages/
+          cp function_app.py host.json deployment_package/
+          cp -r alma_item_checks_webhook_service deployment_package/
+
+      - name: Zip artifact for deployment
+        run: |
+          cd deployment_package
+          zip -r ../python-app.zip .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-app
+          path: python-app.zip
+
+  deploy:
+    name: Deploy
+    needs: [changes, build, get-terraform-outputs]
+    if: ${{ needs.changes.outputs.function == 'true' }}
+    runs-on: ubuntu-latest
+    environment: staging
+
+    env:
+      FUNCTION_APP_NAME: ${{ needs.get-terraform-outputs.outputs.function_app_name }}
+
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: python-app
+
+      - name: Log in to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.ARM_CLIENT_ID }}
+          tenant-id: ${{ env.ARM_TENANT_ID }}
+          subscription-id: ${{ env.ARM_SUBSCRIPTION_ID }}
+
+      - name: Unzip deployment artifact
+        run: unzip python-app.zip -d app
+
+      - name: Deploy to Stage Slot
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ env.FUNCTION_APP_NAME }}
+          slot-name: 'stage'
+          package: 'app'

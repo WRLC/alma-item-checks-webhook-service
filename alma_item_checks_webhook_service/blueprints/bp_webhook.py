@@ -8,7 +8,7 @@ bp = func.Blueprint()
 
 
 @bp.function_name("item_webhook")
-@bp.route("scfwebhook", methods=["GET", "POST"], auth_level="anonymous")
+@bp.route("webhook", methods=["GET", "POST"], auth_level="anonymous")
 def item_webhook(req: func.HttpRequest) -> func.HttpResponse:
     """Process webhook from Alma on item update.
 
