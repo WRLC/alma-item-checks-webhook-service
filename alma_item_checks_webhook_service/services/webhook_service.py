@@ -99,19 +99,23 @@ class WebhookService:
                 "Internal Server Error: Invalid webhook signature", status_code=500
             )
         try:
-            institution_code: str | None = self.req.params.get("institution")
+            institution_code: str | None = self.req.headers.get("X-Institution-Code")
+            if institution_code:
+                institution_code = institution_code.strip()
             if not institution_code:
                 logging.error(
-                    "WebhookService.get_request_data_from_webhook: Missing institution parameter"
+                    "WebhookService.get_request_data_from_webhook: Missing X-Institution-Code header"
                 )
                 return func.HttpResponse(
-                    "Missing institution parameter", status_code=400
+                    "Missing X-Institution-Code header", status_code=400
                 )
         except ValueError:
             logging.error(
-                "WebhookService.get_request_data_from_webhook: Invalid institution parameter"
+                "WebhookService.get_request_data_from_webhook: Invalid X-Institution-Code header"
             )
-            return func.HttpResponse("Invalid institution parameter", status_code=400)
+            return func.HttpResponse(
+                "Invalid X-Institution-Code header", status_code=400
+            )
 
         try:
             request_body = self.req.get_json()
@@ -130,7 +134,8 @@ class WebhookService:
     def activate_webhook(self) -> func.HttpResponse | None:
         """Activate the webhook by responding to a challenge request."""
         if self.req.method == "GET" and self.req.params.get("challenge"):
-            challenge_response = {"challenge": self.req.params.get("challenge")}
+            challenge_value = self.req.params.get("challenge")
+            challenge_response = {"challenge": challenge_value}
             return func.HttpResponse(
                 json.dumps(challenge_response),
                 mimetype="application/json",
