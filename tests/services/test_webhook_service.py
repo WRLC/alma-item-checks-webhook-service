@@ -16,9 +16,9 @@ def mock_request_factory():
         method="POST",
         params=None,
         headers=None,
-        body=b'{"item_data": {"barcode": "12345"}}',
+        body=b'{"item": {"item_data": {"barcode": "12345"}}, "institution": {"value": "TU"}}',
     ):
-        default_headers = {"X-Exl-Signature": "valid_signature", "X-Institution-Code": "TU"}
+        default_headers = {"X-Exl-Signature": "valid_signature"}
         req = func.HttpRequest(
             method=method,
             url="/api/scfwebhook",
@@ -78,7 +78,7 @@ class TestParseWebhook:
 
     def test_parse_webhook_missing_barcode(self, mock_request_factory, mock_dependencies, caplog):
         """Test that a webhook with a missing barcode returns a 400 error."""
-        req = mock_request_factory(body=b'{"item_data": {}}')  # No barcode
+        req = mock_request_factory(body=b'{"item": {"item_data": {}}, "institution": {"value": "TU"}}')  # No barcode
         mock_dependencies["validate_webhook_signature"].return_value = True
 
         service = WebhookService(req)
@@ -141,39 +141,16 @@ class TestValidateSignature:
         assert "Failed to send message to queue: Storage error" in caplog.text
 
     def test_get_request_data_missing_institution(self, mock_request_factory, mock_dependencies, caplog):
-        """Test that missing X-Institution-Code header returns a 400 error."""
-        req = mock_request_factory(headers={"X-Exl-Signature": "valid_signature"})  # No X-Institution-Code header
+        """Test that missing institution.value in request body returns a 400 error."""
+        req = mock_request_factory(body=b'{"item": {"item_data": {"barcode": "12345"}}}')  # No institution
         mock_dependencies["validate_webhook_signature"].return_value = True
 
         service = WebhookService(req)
         response = service.get_request_data_from_webhook()
 
         assert response.status_code == 400
-        assert b"Missing X-Institution-Code header" in response.get_body()
-        assert "Missing X-Institution-Code header" in caplog.text
-
-    def test_get_request_data_institution_with_whitespace(self, mock_request_factory, mock_dependencies):
-        """Test that X-Institution-Code header with whitespace is trimmed properly."""
-        req = mock_request_factory(headers={"X-Exl-Signature": "valid_signature", "X-Institution-Code": "  scf  "})
-        mock_dependencies["validate_webhook_signature"].return_value = True
-
-        service = WebhookService(req)
-        response = service.get_request_data_from_webhook()
-
-        assert isinstance(response, dict)
-        assert response["institution"] == "scf"  # Should be trimmed
-
-    def test_get_request_data_institution_only_whitespace(self, mock_request_factory, mock_dependencies, caplog):
-        """Test that X-Institution-Code header with only whitespace is treated as missing."""
-        req = mock_request_factory(headers={"X-Exl-Signature": "valid_signature", "X-Institution-Code": "   "})
-        mock_dependencies["validate_webhook_signature"].return_value = True
-
-        service = WebhookService(req)
-        response = service.get_request_data_from_webhook()
-
-        assert response.status_code == 400
-        assert b"Missing X-Institution-Code header" in response.get_body()
-        assert "Missing X-Institution-Code header" in caplog.text
+        assert b"Missing institution.value in request body" in response.get_body()
+        assert "Missing institution.value in request body" in caplog.text
 
     def test_get_request_data_invalid_json(self, mock_request_factory, mock_dependencies, caplog):
         """Test that invalid JSON in request body returns a 400 error."""
@@ -188,28 +165,3 @@ class TestValidateSignature:
         assert response.status_code == 400
         assert b"Invalid JSON in request body" in response.get_body()
         assert "Invalid JSON in request body" in caplog.text
-
-    def test_get_request_data_institution_value_error(self, mock_dependencies, caplog):
-        """Test that ValueError during X-Institution-Code header extraction returns a 400 error."""
-        # Create a completely mocked request that raises ValueError only for X-Institution-Code
-        req = Mock()
-        req.headers = Mock()
-
-        def mock_header_get(header_name):
-            if header_name == "X-Institution-Code":
-                raise ValueError("Header parsing error")
-            elif header_name == "X-Exl-Signature":
-                return "test_signature"
-            return None
-
-        req.headers.get.side_effect = mock_header_get
-        req.get_body.return_value = b'{"test": "data"}'
-
-        mock_dependencies["validate_webhook_signature"].return_value = True
-
-        service = WebhookService(req)
-        response = service.get_request_data_from_webhook()
-
-        assert response.status_code == 400
-        assert b"Invalid X-Institution-Code header" in response.get_body()
-        assert "Invalid X-Institution-Code header" in caplog.text
