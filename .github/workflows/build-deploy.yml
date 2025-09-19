@@ -94,8 +94,11 @@ jobs:
 
   get-terraform-outputs:
     name: Get Terraform Outputs
-    needs: [ changes ]
-    if: needs.changes.outputs.function == 'true'
+    needs: [ changes, terraform ]
+    if: |
+      always() &&
+      needs.changes.outputs.function == 'true' &&
+      (needs.terraform.result == 'success' || needs.terraform.result == 'skipped')
     runs-on: ubuntu-latest
 
     outputs:
