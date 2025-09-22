@@ -49,6 +49,14 @@ class WebhookService:
             )
 
         if isinstance(request_data, dict):
+            if (
+                request_data.get("request", {}).get("event", {}).get("value")
+                != "ITEM_UPDATED"
+            ):
+                logging.info(
+                    "WebhookService.parse_webhook(): Not an item update event. Skipping."
+                )
+                return func.HttpResponse("Webhook received", status_code=200)
             barcode: str = (
                 request_data.get("request", {})
                 .get("item", {})
@@ -57,7 +65,7 @@ class WebhookService:
             )
             if not barcode:
                 logging.error(
-                    "bp_webhook.item_webhook: Barcode not found in webhook payload."
+                    "WebhookService.item_webhook: Barcode not found in webhook payload."
                 )
                 return func.HttpResponse(
                     "Invalid payload: Barcode is missing.", status_code=400
@@ -145,7 +153,7 @@ class WebhookService:
             self.req.get_body(), WEBHOOK_SECRET, self.req.headers.get("X-Exl-Signature")
         ):
             logging.error(
-                "RequestService.validate_signature: Invalid webhook signature received."
+                "WebhookService.validate_signature: Invalid webhook signature received."
             )
             return False
 
