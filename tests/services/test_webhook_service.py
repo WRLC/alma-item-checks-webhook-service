@@ -16,7 +16,7 @@ def mock_request_factory():
         method="POST",
         params=None,
         headers=None,
-        body=b'{"item": {"item_data": {"barcode": "12345"}}, "institution": {"value": "TU"}}',
+        body=b'{"event": {"value": "ITEM_UPDATED"}, "item": {"item_data": {"barcode": "12345"}}, "institution": {"value": "TU"}}',
     ):
         default_headers = {"X-Exl-Signature": "valid_signature"}
         req = func.HttpRequest(
@@ -78,7 +78,7 @@ class TestParseWebhook:
 
     def test_parse_webhook_missing_barcode(self, mock_request_factory, mock_dependencies, caplog):
         """Test that a webhook with a missing barcode returns a 400 error."""
-        req = mock_request_factory(body=b'{"item": {"item_data": {}}, "institution": {"value": "TU"}}')  # No barcode
+        req = mock_request_factory(body=b'{"event": {"value": "ITEM_UPDATED"}, "item": {"item_data": {}}, "institution": {"value": "TU"}}')  # No barcode
         mock_dependencies["validate_webhook_signature"].return_value = True
 
         service = WebhookService(req)
@@ -87,6 +87,19 @@ class TestParseWebhook:
         assert response.status_code == 400
         assert b"Invalid payload: Barcode is missing." in response.get_body()
         assert "Barcode not found in webhook payload" in caplog.text
+
+    def test_parse_webhook_non_item_updated_event(self, mock_request_factory, mock_dependencies):
+        """Test that a webhook with a non-ITEM_UPDATED event returns 200 but doesn't process."""
+        req = mock_request_factory(body=b'{"event": {"value": "ITEM_CREATED"}, "item": {"item_data": {"barcode": "12345"}}, "institution": {"value": "TU"}}')
+        mock_dependencies["validate_webhook_signature"].return_value = True
+
+        service = WebhookService(req)
+        response = service.parse_webhook()
+
+        assert response.status_code == 200
+        assert response.get_body() == b"Webhook received"
+        # Should not call send_queue_message for non-ITEM_UPDATED events
+        mock_dependencies["mock_storage_service"].send_queue_message.assert_not_called()
 
     def test_parse_webhook_invalid_signature(self, mock_request_factory, mock_dependencies, caplog):
         """Test that an invalid signature returns a 500 error."""
@@ -142,7 +155,7 @@ class TestValidateSignature:
 
     def test_get_request_data_missing_institution(self, mock_request_factory, mock_dependencies, caplog):
         """Test that missing institution.value in request body returns a 400 error."""
-        req = mock_request_factory(body=b'{"item": {"item_data": {"barcode": "12345"}}}')  # No institution
+        req = mock_request_factory(body=b'{"event": {"value": "ITEM_UPDATED"}, "item": {"item_data": {"barcode": "12345"}}}')  # No institution
         mock_dependencies["validate_webhook_signature"].return_value = True
 
         service = WebhookService(req)
