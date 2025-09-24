@@ -21,21 +21,22 @@ env:
   ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
   ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
   ARM_USE_OIDC: true
-  TF_STATE_RG: ${{ secrets.TF_STATE_RG }}
-  TF_STATE_SA: ${{ secrets.TF_STATE_SA }}
-  TF_STATE_CONTAINER: ${{ secrets.TF_STATE_CONTAINER }}
-  TF_STATE_KEY: ${{ secrets.TF_STATE_KEY }}
-  TF_VAR_tf_shared_resource_group_name: ${{ secrets.TF_SHARED_RESOURCE_GROUP_NAME }}
-  TF_VAR_tf_shared_storage_account_name: ${{ secrets.TF_SHARED_STORAGE_ACCOUNT_NAME }}
-  TF_VAR_tf_shared_container_name: ${{ secrets.TF_SHARED_CONTAINER_NAME }}
-  TF_VAR_tf_shared_key: ${{ secrets.TF_SHARED_KEY }}
-  TF_VAR_webhook_secret: ${{ secrets.WEBHOOK_SECRET }}
-  TF_WORKING_DIR: ./terraform
 
 jobs:
   terraform:
     name: Terraform
     runs-on: ubuntu-latest
+    env:
+      TF_WORKING_DIR: ./terraform
+      TF_STATE_RG: ${{ secrets.TF_STATE_RG }}
+      TF_STATE_SA: ${{ secrets.TF_STATE_SA }}
+      TF_STATE_CONTAINER: ${{ secrets.TF_STATE_CONTAINER }}
+      TF_STATE_KEY: ${{ secrets.TF_STATE_KEY }}
+      TF_VAR_tf_shared_resource_group_name: ${{ secrets.TF_SHARED_RESOURCE_GROUP_NAME }}
+      TF_VAR_tf_shared_storage_account_name: ${{ secrets.TF_SHARED_STORAGE_ACCOUNT_NAME }}
+      TF_VAR_tf_shared_container_name: ${{ secrets.TF_SHARED_CONTAINER_NAME }}
+      TF_VAR_tf_shared_key: ${{ secrets.TF_SHARED_KEY }}
+      TF_VAR_webhook_secret: ${{ secrets.WEBHOOK_SECRET }}
 
     outputs:
       function_app_name: ${{ steps.get_outputs.outputs.function_app_name }}
