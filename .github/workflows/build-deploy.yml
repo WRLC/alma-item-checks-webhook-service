@@ -140,7 +140,7 @@ jobs:
 
     env:
       FUNCTION_APP_NAME: ${{ needs.terraform.outputs.function_app_name }}
-      STAGE_SLOT_NAME: ${{ needs.terraform.outputs.function_app_name }}
+      STAGE_SLOT_NAME: ${{ needs.terraform.outputs.stage_slot_name }}
 
     steps:
       - name: Download artifact
