@@ -13,8 +13,8 @@ on:
   workflow_dispatch:
 
 permissions:
-  id-token: write # Required for OIDC authentication
-  contents: read  # Required to check out the repository
+  id-token: write
+  contents: read
 
 env:
   ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
@@ -33,34 +33,14 @@ env:
   TF_WORKING_DIR: ./terraform
 
 jobs:
-  changes:
-    runs-on: ubuntu-latest
-    outputs:
-      terraform: ${{ steps.filter.outputs.terraform }}
-      function: ${{ steps.filter.outputs.function }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Filter
-        uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          filters: |
-            terraform:
-              - 'terraform/**'
-            function:
-              - 'alma_item_checks_webhook_service/**'
-              - 'pyproject.toml'
-              - 'function_app.py'
-              - '.github/workflows/build-deploy.yml'
-
   terraform:
     name: Terraform
-    needs: changes
-    if: ${{ needs.changes.outputs.terraform == 'true' }}
     runs-on: ubuntu-latest
+
+    outputs:
+      function_app_name: ${{ steps.get_outputs.outputs.function_app_name }}
+      python_version: ${{ steps.get_outputs.outputs.python_version }}
+      stage_slot_name: ${{ steps.get_outputs.outputs.stage_slot_name }}
 
     steps:
       - name: Checkout
@@ -92,61 +72,24 @@ jobs:
         run: |
           terraform apply -auto-approve
 
-  get-terraform-outputs:
-    name: Get Terraform Outputs
-    needs: [ changes, terraform ]
-    if: |
-      always() &&
-      needs.changes.outputs.function == 'true' &&
-      (needs.terraform.result == 'success' || needs.terraform.result == 'skipped')
-    runs-on: ubuntu-latest
-
-    outputs:
-      function_app_name: ${{ steps.get_outputs.outputs.function_app_name }}
-      python_version: ${{ steps.get_outputs.outputs.python_version }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_wrapper: false
-
-      - name: Login to Azure
-        uses: azure/login@v1
-        with:
-          client-id: ${{ env.ARM_CLIENT_ID }}
-          tenant-id: ${{ env.ARM_TENANT_ID }}
-          subscription-id: ${{ env.ARM_SUBSCRIPTION_ID }}
-
-      - name: Terraform Init
-        working-directory: ${{ env.TF_WORKING_DIR }}
-        run: |
-          terraform init \
-            -backend-config="resource_group_name=${{ env.TF_STATE_RG }}" \
-            -backend-config="storage_account_name=${{ env.TF_STATE_SA }}" \
-            -backend-config="container_name=${{ env.TF_STATE_CONTAINER }}" \
-            -backend-config="key=${{ env.TF_STATE_KEY }}" \
-
       - name: Get Terraform Outputs
         id: get_outputs
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: |
           APP_NAME=$(terraform output -raw function_app_name)
           PYTHON_VERSION=$(terraform output -raw python_version)
+          STAGE_SLOT_NAME=$(terraform output -raw stage_slot_name)
           echo "function_app_name=$APP_NAME" >> "$GITHUB_OUTPUT"
           echo "python_version=$PYTHON_VERSION" >> "$GITHUB_OUTPUT"
+          echo "stage_slot_name=$STAGE_SLOT_NAME" >> "$GITHUB_OUTPUT
 
   build:
     name: Build
-    needs: [changes, get-terraform-outputs]
-    if: ${{ needs.changes.outputs.function == 'true' }}
+    needs: terraform
     runs-on: ubuntu-latest
 
     env:
-      PYTHON_VERSION: ${{ needs.get-terraform-outputs.outputs.python_version }}
+      PYTHON_VERSION: ${{ needs.terraform.outputs.python_version }}
       PAT_DEVOPS_TOKEN: ${{ secrets.PAT_DEVOPS_TOKEN }}
 
     steps:
@@ -191,13 +134,13 @@ jobs:
 
   deploy:
     name: Deploy
-    needs: [changes, build, get-terraform-outputs]
-    if: ${{ needs.changes.outputs.function == 'true' }}
+    needs: [terraform, build]
     runs-on: ubuntu-latest
     environment: staging
 
     env:
-      FUNCTION_APP_NAME: ${{ needs.get-terraform-outputs.outputs.function_app_name }}
+      FUNCTION_APP_NAME: ${{ needs.terraform.outputs.function_app_name }}
+      STAGE_SLOT_NAME: ${{ needs.terraform.outputs.function_app_name }}
 
     steps:
       - name: Download artifact
@@ -219,5 +162,5 @@ jobs:
         uses: Azure/functions-action@v1
         with:
           app-name: ${{ env.FUNCTION_APP_NAME }}
-          slot-name: 'stage'
+          slot-name: ${{ env.STAGE_SLOT_NAME }}
           package: 'app'
