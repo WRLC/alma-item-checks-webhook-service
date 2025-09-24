@@ -81,7 +81,7 @@ jobs:
           STAGE_SLOT_NAME=$(terraform output -raw stage_slot_name)
           echo "function_app_name=$APP_NAME" >> "$GITHUB_OUTPUT"
           echo "python_version=$PYTHON_VERSION" >> "$GITHUB_OUTPUT"
-          echo "stage_slot_name=$STAGE_SLOT_NAME" >> "$GITHUB_OUTPUT
+          echo "stage_slot_name=$STAGE_SLOT_NAME" >> "$GITHUB_OUTPUT"
 
   build:
     name: Build
